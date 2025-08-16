@@ -4,7 +4,7 @@ import {
 	ParsedCheckinSchema,
 	type WebhookPayload,
 	WebhookPayloadSchema,
-} from "./types.js";
+} from "../types.js";
 
 async function handleCheckinWebhook(
 	payload: WebhookPayload,

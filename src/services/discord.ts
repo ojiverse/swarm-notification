@@ -3,7 +3,7 @@ import type {
 	DiscordWebhookPayload,
 	ParsedCheckin,
 	Venue,
-} from "./types.js";
+} from "../types.js";
 
 async function sendCheckinToDiscord(
 	checkin: ParsedCheckin,

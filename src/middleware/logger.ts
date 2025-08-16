@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 
 const isProduction = process.env["NODE_ENV"] === "production";
 

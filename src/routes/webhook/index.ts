@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { loadConfig } from "../../config.js";
-import { logger } from "../../logger.js";
-import { handleCheckinWebhook, validateWebhookPayload } from "../../webhook.js";
+import { logger } from "../../utils/logger.js";
+import { handleCheckinWebhook, validateWebhookPayload } from "../../services/webhook.js";
 
 const router = new Hono();
 const config = loadConfig();
