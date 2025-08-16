@@ -116,27 +116,22 @@ jobs:
         run: terraform init
         working-directory: infra/env/production
 
-      - name: Create terraform.tfvars with new image URL
-        run: |
-          cat > terraform.tfvars << EOF
-          # Google Cloud Project Configuration
-          project_id = "${{ env.PROJECT_ID }}"
-          region     = "${{ env.REGION }}"
-          
-          # Container Image (updated by CI/CD)
-          image_url = "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          
-          # Monitoring Configuration (optional)
-          notification_channels = []
-          EOF
-        working-directory: infra/env/production
-
       - name: Terraform Plan
         run: terraform plan
+        env:
+          TF_VAR_project_id: ${{ env.PROJECT_ID }}
+          TF_VAR_region: ${{ env.REGION }}
+          TF_VAR_image_url: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          TF_VAR_notification_channels: "[]"
         working-directory: infra/env/production
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        env:
+          TF_VAR_project_id: ${{ env.PROJECT_ID }}
+          TF_VAR_region: ${{ env.REGION }}
+          TF_VAR_image_url: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          TF_VAR_notification_channels: "[]"
         working-directory: infra/env/production
 
       - name: Get service URL
