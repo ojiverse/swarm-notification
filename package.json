@@ -13,11 +13,12 @@
 		"check:types": "tsgo --noEmit ."
 	},
 	"lint-staged": {
-		"*": "secretlint"
+		"*": "secretlint",
+		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": "biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true"
 	},
 	"simple-git-hooks": {
-   		"pre-commit": "pnpm exec lint-staged"
-  	},
+		"pre-commit": "pnpm exec lint-staged"
+	},
 	"keywords": [],
 	"author": "OldBigBuddha<contact@oldbigbuddha.net>",
 	"license": "MIT",
