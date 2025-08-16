@@ -24,6 +24,8 @@
 		"typescript": "5.9.2"
 	},
 	"dependencies": {
-		"tslog": "4.9.3"
+		"hono": "4.9.2",
+		"tslog": "4.9.3",
+		"zod": "4.0.17"
 	}
 }
