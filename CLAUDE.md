@@ -1,464 +1,193 @@
-# CLAUDE.md - Swarm API Real-time Integration Project
+# Swarm API Real-time Integration - Development Knowledge Base
 
-## Phase 1: Developer-Only Authentication Implementation
+## Project Overview
+This project implements a real-time webhook service that receives Foursquare Swarm check-in data via Real-time Push API and forwards notifications to Discord. Currently deployed on Google Cloud Run with a debug-mode authentication system.
 
-### Overview
+## Architecture & Technology Stack
 
-Implementation of a secure, developer-only authentication system for testing Foursquare Real-time Push API integration. This phase focuses on single-user validation before scaling to multi-user OAuth authentication.
+### Core Technologies
+- **Runtime**: Node.js 18+ with TypeScript
+- **Framework**: Hono (lightweight web framework)
+- **Validation**: Zod schemas for type-safe data validation
+- **Logging**: tslog with structured logging
+- **Infrastructure**: Google Cloud Platform (Cloud Run, Secret Manager, Artifact Registry)
 
-### Architectural Decision
+### Key Components
+- **Webhook Handler**: `src/routes/webhook/index.ts` - Processes Foursquare push notifications
+- **Authentication**: `src/services/auth.ts` - Debug-mode user authentication
+- **Discord Integration**: `src/services/discord.ts` - Formats and sends Discord embeds
+- **OAuth Flow**: `src/routes/auth/swarm.ts` - Handles Foursquare OAuth for token acquisition
 
-**Memory-based Authentication Approach:**
-- Store developer's access token in secure memory storage
-- No database persistence required for initial testing
-- Single authenticated user (developer) for controlled testing environment
-- Validates Real-time Push API functionality before production scaling
+## Development Workflows
 
-## Security Architecture
+### Local Development Setup
+1. Configure environment variables in `.env.local`
+2. Run OAuth flow via `/auth/swarm/login` to obtain debug tokens
+3. Use tunneling service (Cloudflare Tunnel/ngrok) for external webhook access
+4. Configure Foursquare Developer Console with tunnel URL
+5. Test with actual Swarm check-ins
 
-### Security Threat Model
-
-**Primary Assets:**
-- Developer's Foursquare access token
-- Personal check-in data
-- Application integrity
-
-**Threat Vectors:**
-1. **Memory Exposure**: Token accessible via memory dumps or process inspection
-2. **Log Exposure**: Accidental token logging in application or system logs
-3. **Network Interception**: Token transmission over insecure channels
-4. **Environment Exposure**: Token visible in environment variables or CI/CD
-5. **Application Vulnerabilities**: Token exposure through debug endpoints or errors
-
-### Security Controls Implementation
-
-#### Level 1: Essential Security (Required)
-
-**Token Storage Security:**
-```typescript
-// src/services/auth.ts
-// For local development: simple storage (production should use encryption)
-let storedToken: string | null = null;
-
-const storeToken = (token: string): void => {
-  storedToken = token;
-};
-
-const getStoredToken = (): string => {
-  if (!storedToken) {
-    throw new Error('No token stored');
-  }
-  return storedToken;
-};
-
-const clearToken = (): void => {
-  storedToken = null;
-};
-```
-
-**Environment Variable Security:**
-```typescript
-// Local development with environment variables
-const DEBUG_CONFIG_SCHEMA = z.object({
-  // Existing configs...
-  debugFoursquareUserId: z.string().min(1),
-  debugAccessToken: z.string().min(1),
-});
-
-// Validation ensures required values are present
-function loadDebugConfig(): DebugConfig {
-  return DEBUG_CONFIG_SCHEMA.parse({
-    ...loadConfig(),
-    debugFoursquareUserId: process.env["DEBUG_FOURSQUARE_USER_ID"],
-    debugAccessToken: process.env["DEBUG_ACCESS_TOKEN"],
-  });
-}
-```
-
-**Logging Security:**
-```typescript
-// src/middleware/sanitizer.ts
-export const sanitizeSecrets = (obj: any): any => {
-  const sensitiveFields = ['access_token', 'token', 'secret', 'password'];
-  // Deep sanitization of sensitive fields
-  return sanitizeSensitiveFields(obj, sensitiveFields);
-};
-```
-
-#### Level 2: Enhanced Security (Future Implementation)
-
-**Token Validation:**
-```typescript
-// src/services/auth.ts
-export const validateDebugToken = async (token: string): Promise<boolean> => {
-  try {
-    // Validate token with Foursquare API
-    const response = await fetch('https://api.foursquare.com/v2/users/self', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.ok;
-  } catch (error) {
-    securityLogger.error('Token validation failed', { 
-      error: sanitizeError(error) 
-    });
-    return false;
-  }
-};
-```
-
-
-### Implementation Plan
-
-#### Step 0: Developer Token Acquisition Setup
-
-**Simple OAuth Flow for Token Acquisition:**
-```typescript
-// src/routes/auth/index.ts
-const authRouter = new Hono();
-
-// Step 1: Redirect to Foursquare OAuth
-authRouter.get("/swarm/login", (c) => {
-  const clientId = process.env["FOURSQUARE_CLIENT_ID"];
-  const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
-  
-  const authUrl = new URL("https://foursquare.com/oauth2/authenticate");
-  authUrl.searchParams.set("client_id", clientId);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("redirect_uri", redirectUri);
-  
-  return c.redirect(authUrl.toString());
-});
-
-// Step 2: Handle OAuth callback and exchange code for token
-authRouter.get("/swarm/callback", async (c) => {
-  const code = c.req.query("code");
-  const error = c.req.query("error");
-  
-  if (error) {
-    return c.html(`
-      <html>
-        <body>
-          <h1>Authentication Error</h1>
-          <p>Error: ${error}</p>
-          <a href="/auth/swarm/login">Try Again</a>
-        </body>
-      </html>
-    `);
-  }
-  
-  try {
-    const tokenResponse = await exchangeCodeForToken(code);
-    const userInfo = await getUserInfo(tokenResponse.access_token);
-    
-    return c.html(`
-      <html>
-        <body>
-          <h1>Developer Token Retrieved</h1>
-          <p><strong>User ID:</strong> ${userInfo.id}</p>
-          <p><strong>Name:</strong> ${userInfo.firstName} ${userInfo.lastName || ''}</p>
-          
-          <h2>Environment Variables</h2>
-          <p>Add these to your .env.local file:</p>
-          <pre style="background: #f4f4f4; padding: 10px; border-radius: 4px;">
-DEBUG_FOURSQUARE_USER_ID=${userInfo.id}
-DEBUG_ACCESS_TOKEN=${tokenResponse.access_token}
-          </pre>
-          
-          <p style="color: red;"><strong>Security Note:</strong> Save these values securely and don't share them!</p>
-          <button onclick="copyToClipboard()">Copy to Clipboard</button>
-          
-          <script>
-            function copyToClipboard() {
-              const text = \`DEBUG_FOURSQUARE_USER_ID=${userInfo.id}
-DEBUG_ACCESS_TOKEN=${tokenResponse.access_token}\`;
-              navigator.clipboard.writeText(text);
-              alert('Copied to clipboard!');
-            }
-          </script>
-        </body>
-      </html>
-    `);
-  } catch (error) {
-    return c.html(`
-      <html>
-        <body>
-          <h1>Token Exchange Error</h1>
-          <p>Failed to exchange code for token: ${error.message}</p>
-          <a href="/auth/swarm/login">Try Again</a>
-        </body>
-      </html>
-    `);
-  }
-});
-
-export default authRouter;
-```
-
-**Token Exchange Helper:**
-```typescript
-// src/services/oauth.ts
-type TokenResponse = {
-  readonly access_token: string;
-  readonly token_type: string;
-};
-
-type UserInfo = {
-  readonly id: string;
-  readonly firstName: string;
-  readonly lastName?: string;
-};
-
-export const exchangeCodeForToken = async (code: string): Promise<TokenResponse> => {
-  const response = await fetch("https://foursquare.com/oauth2/access_token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      client_id: process.env["FOURSQUARE_CLIENT_ID"]!,
-      client_secret: process.env["FOURSQUARE_CLIENT_SECRET"]!,
-      grant_type: "authorization_code",
-      redirect_uri: process.env["FOURSQUARE_REDIRECT_URI"]!,
-      code,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Token exchange failed: ${response.statusText}`);
-  }
-
-  return response.json();
-};
-
-export const getUserInfo = async (accessToken: string): Promise<UserInfo> => {
-  const response = await fetch("https://api.foursquare.com/v2/users/self?v=20231010", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`User info fetch failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return {
-    id: data.response.user.id,
-    firstName: data.response.user.firstName,
-    lastName: data.response.user.lastName,
-  };
-};
-```
-
-**Main App Integration:**
-```typescript
-// src/main.ts
-import authRoutes from "./routes/auth/index.js";
-
-// Add auth routes
-app.route("/auth", authRoutes);
-```
-
-**Required Environment Variables:**
+### Code Quality Commands
 ```bash
-# .env.local (OAuth config)
+pnpm format          # Biome formatting
+pnpm check:types     # TypeScript type checking
+pnpm build          # Production build
+pnpm dev            # Development server
+```
+
+### Deployment Process
+1. Build Docker image: `gcloud builds submit --tag us-central1-docker.pkg.dev/swarm-notifier/swarm-api/swarm-notifier:latest .`
+2. Deploy via Terraform: `cd infra/env/production && terraform apply`
+3. Verify deployment: Check `/webhook/health` endpoint
+
+## Security Implementation
+
+### Current Security Model
+- **Authentication**: Single debug user ID verification
+- **Token Storage**: In-memory access token storage
+- **Webhook Verification**: Push secret validation
+- **Input Validation**: Strict Zod schema validation
+- **Security Logging**: Dedicated security event logging
+
+### Security Considerations
+- All webhook requests return 200 OK (Foursquare requirement)
+- Unauthorized attempts logged with IP tracking
+- No secrets in logs (sanitized logging)
+- HTTPS required for production webhooks
+
+## API Endpoints & Data Flow
+
+### Authentication Endpoints
+- `GET /auth/swarm/login` - Initiates OAuth flow
+- `GET /auth/swarm/callback` - Handles OAuth callback and displays tokens
+
+### Webhook Endpoints
+- `POST /webhook/checkin` - Receives Foursquare check-in webhooks
+- `GET /webhook/health` - Health check with authentication status
+
+### Data Processing Flow
+1. Webhook payload validation (`WebhookPayloadSchema`)
+2. User authentication verification
+3. Push secret validation
+4. Check-in data parsing (`ParsedCheckinSchema`)
+5. Discord embed formatting
+6. Asynchronous Discord webhook delivery
+
+## Infrastructure & Deployment
+
+### Terraform Structure
+- **Bootstrap**: `infra/bootstrap/` - GCS backend, basic resources
+- **Modules**: `infra/modules/` - Reusable infrastructure components
+- **Environment**: `infra/env/production/` - Production configuration
+
+### Cloud Resources
+- **Cloud Run**: Auto-scaling container service (1 vCPU, 512MB)
+- **Secret Manager**: Stores sensitive configuration
+- **Artifact Registry**: Container image storage
+- **Cloud Logging/Monitoring**: Observability stack
+
+### Cost Optimization
+- Min instances: 0 (cold start acceptable)
+- Pay-per-request pricing model
+- Estimated cost: ~$1.11/month (debug phase)
+
+## Future Development Roadmap
+
+### Phase 2: Multi-User Support
+- **Database**: Add Firestore for user token storage
+- **Authentication**: Implement full OAuth session management
+- **User Management**: Support multiple authenticated users
+- **Settings**: Per-user notification preferences
+
+### Technical Debt & Improvements
+- **Error Handling**: Enhanced retry mechanisms for Discord webhook failures
+- **Rate Limiting**: Implement proper rate limiting for webhook endpoints
+- **Monitoring**: Add comprehensive health checks and alerting
+- **Testing**: Unit and integration test coverage
+- **Documentation**: API documentation and user guides
+
+### Scaling Considerations
+- **Performance**: Optimize for higher check-in volumes
+- **Reliability**: Implement queue-based processing for webhook delivery
+- **Security**: Enhanced authentication and authorization
+- **Observability**: Distributed tracing and advanced monitoring
+
+## Development Best Practices
+
+### Code Standards
+- Follow TDD approach with comprehensive test coverage
+- Use TypeScript strict mode with proper type definitions
+- Implement proper error boundaries and graceful degradation
+- Maintain structured logging for debugging and monitoring
+
+### Security Guidelines
+- Never commit secrets or tokens to repository
+- Validate all input data with Zod schemas
+- Implement proper authentication for all protected endpoints
+- Log security events without exposing sensitive information
+
+### Infrastructure Guidelines
+- Use Terraform for all infrastructure changes
+- Implement proper secret rotation procedures
+- Monitor resource usage and costs
+- Maintain backup and disaster recovery procedures
+
+## Troubleshooting Guide
+
+### Common Issues
+- **OAuth Flow**: Redirect URI mismatch in Foursquare Developer Console
+- **Webhook Delivery**: Tunnel URL configuration or firewall issues
+- **Authentication**: Missing environment variables or invalid tokens
+- **Discord Integration**: Incorrect webhook URL or permissions
+
+### Debugging Commands
+```bash
+# View application logs
+gcloud logs read "resource.type=cloud_run_revision" --limit=50
+
+# Check service status
+gcloud run services describe swarm-api --region=us-central1
+
+# Test endpoints
+curl https://swarm-api-oj7mv2xyia-uc.a.run.app/webhook/health
+```
+
+## External Dependencies
+
+### Foursquare API
+- **OAuth Endpoint**: `https://foursquare.com/oauth2/authenticate`
+- **Token Exchange**: `https://foursquare.com/oauth2/access_token`
+- **User API**: `https://api.foursquare.com/v2/users/self`
+- **Documentation**: https://docs.foursquare.com/developer/reference/real-time-view
+
+### Discord API
+- **Webhook Format**: Discord embed specification
+- **Rate Limits**: Standard Discord webhook rate limiting
+- **Documentation**: https://discord.com/developers/docs/resources/webhook
+
+## Environment Configuration
+
+### Required Environment Variables
+```bash
+# OAuth Configuration
 FOURSQUARE_CLIENT_ID=your_client_id
 FOURSQUARE_CLIENT_SECRET=your_client_secret
 FOURSQUARE_REDIRECT_URI=http://localhost:3000/auth/swarm/callback
 
-# After OAuth flow completion:
-DEBUG_FOURSQUARE_USER_ID=obtained_from_oauth
-DEBUG_ACCESS_TOKEN=obtained_from_oauth
-```
+# Push API Configuration
+FOURSQUARE_PUSH_SECRET=your_push_secret
+DISCORD_WEBHOOK_URL=your_discord_webhook_url
 
-**Usage Flow:**
-1. Start local server: `pnpm dev`
-2. Visit: `http://localhost:3000/auth/swarm/login`
-3. Login to Foursquare and authorize app
-4. Copy the displayed environment variables to `.env.local`
-5. Restart server with developer authentication enabled
+# Debug Authentication (obtained via OAuth flow)
+DEBUG_FOURSQUARE_USER_ID=user_id
+DEBUG_ACCESS_TOKEN=access_token
 
-#### Step 1: Local Development Token Management
-```typescript
-// src/config.ts - Enhanced
-export interface DebugConfig extends Config {
-  readonly debugFoursquareUserId: string;
-  readonly debugAccessToken: string;
-}
-
-// Local development - use environment variables
-function loadDebugConfig(): DebugConfig {
-  return {
-    ...loadConfig(),
-    debugFoursquareUserId: process.env["DEBUG_FOURSQUARE_USER_ID"] || "",
-    debugAccessToken: process.env["DEBUG_ACCESS_TOKEN"] || "",
-  };
-}
-```
-
-#### Step 2: Authentication Service
-```typescript
-// src/services/auth.ts
-let authenticatedUserId: string | null = null;
-
-export const initializeDebugAuth = async (userId: string, token: string): Promise<void> => {
-  const isValid = await validateDebugToken(token);
-  
-  if (!isValid) {
-    throw new Error('Invalid debug token');
-  }
-  
-  storeToken(token);
-  authenticatedUserId = userId;
-  
-  authLogger.info('Debug authentication initialized', {
-    userId,
-    // Never log tokens
-  });
-};
-
-export const isDebugAuthenticated = (userId: string): boolean => {
-  return authenticatedUserId === userId && storedToken !== null;
-};
-
-export const getDebugToken = async (): Promise<string> => {
-  return getStoredToken();
-};
-
-export const destroyDebugAuth = (): void => {
-  clearToken();
-  authenticatedUserId = null;
-};
-```
-
-#### Step 3: Webhook Security Enhancement
-```typescript
-// src/routes/webhook/index.ts - Enhanced
-router.post("/checkin", async (c) => {
-  try {
-    const payload = validateWebhookPayload(await c.req.json());
-    
-    // Verify this is the authenticated debug user
-    if (!isDebugAuthenticated(payload.user.id)) {
-      securityLogger.warn('Unauthorized webhook attempt', {
-        userId: payload.user.id,
-        ip: c.req.header('cf-connecting-ip'),
-      });
-      return c.json({ success: false, message: "Unauthorized" }, 200);
-    }
-    
-    // Process authenticated webhook
-    const result = await handleCheckinWebhook(payload, config.discordWebhookUrl, config.foursquarePushSecret);
-    
-    return c.json(result, 200);
-  } catch (error) {
-    // Sanitized error logging
-    webhookLogger.error("Webhook error", { 
-      error: sanitizeError(error),
-      // Never log request body that might contain tokens
-    });
-    
-    return c.json({
-      success: false,
-      message: "Processing error",
-    }, 200);
-  }
-});
-```
-
-### Deployment Security
-
-#### Local Development Environment
-```bash
-# .env.local (for local development only)
-NODE_ENV=development
-FOURSQUARE_PUSH_SECRET=your_push_secret_here
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id/your_webhook_token
-DEBUG_FOURSQUARE_USER_ID=your_foursquare_user_id
-DEBUG_ACCESS_TOKEN=your_foursquare_access_token
+# Server Configuration
 PORT=3000
-
-# .env.example (for documentation)
 NODE_ENV=development
-FOURSQUARE_PUSH_SECRET=your_push_secret_here
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id/your_webhook_token
-DEBUG_FOURSQUARE_USER_ID=your_foursquare_user_id
-DEBUG_ACCESS_TOKEN=your_foursquare_access_token
-PORT=3000
 ```
 
-#### Production Deployment (Future)
-For production deployment, use Google Cloud Secret Manager instead of environment variables for enhanced security.
-
-### Security Monitoring
-
-#### Audit Logging
-```typescript
-// src/security/audit.ts
-export const auditLogger = logger.getSubLogger({ name: "audit" });
-
-export const auditEvent = (event: AuditEvent) => {
-  auditLogger.info("Security audit event", {
-    event_type: event.type,
-    user_id: event.userId,
-    timestamp: new Date().toISOString(),
-    ip_address: event.ipAddress,
-    user_agent: sanitizeUserAgent(event.userAgent),
-    // Never log sensitive data
-  });
-};
-```
-
-#### Health Check Security
-```typescript
-// src/routes/webhook/index.ts
-router.get("/health", (c) => {
-  return c.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    authentication: isDebugAuthenticated(config.debugFoursquareUserId) ? "active" : "inactive",
-    // Never expose token or sensitive config
-  });
-});
-```
-
-### Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation | Status |
-|------|------------|--------|------------|--------|
-| Token exposure in logs | Medium | High | Log sanitization middleware | Required |
-| Token exposure in memory | Low | High | Encrypted memory storage | Required |
-| Unauthorized API access | Low | Medium | Token validation + user verification | Required |
-| Network interception | Very Low | High | HTTPS enforcement | Required |
-| Cloud environment breach | Very Low | High | IAM roles + Secret Manager | Required |
-
-### Success Criteria
-
-**Phase 1 Completion Requirements:**
-1. ✅ Developer token securely stored in Google Cloud Secret Manager
-2. ✅ Token encrypted in application memory
-3. ✅ All logs sanitized of sensitive data
-4. ✅ Webhook authentication validates developer identity
-5. ✅ Real-time push API successfully receives and processes check-ins
-6. ✅ Discord notifications working correctly
-7. ✅ Security audit logging implemented
-8. ✅ Rate limiting preventing token abuse
-
-**Security Validation:**
-- [ ] Penetration testing of webhook endpoints
-- [ ] Log analysis confirming no token exposure
-- [ ] Memory dump analysis confirming encryption
-- [ ] Network traffic analysis confirming HTTPS-only
-- [ ] IAM audit confirming minimal permissions
-
-### Next Phase Preparation
-
-Upon successful completion of Phase 1, the following will be implemented for multi-user support:
-
-1. **Database Integration**: PostgreSQL with encrypted token storage
-2. **OAuth 2.0 Flow**: Complete user authentication workflow
-3. **User Management**: Registration, token refresh, revocation
-4. **Scalability**: Multi-tenant architecture with user isolation
-5. **Enhanced Security**: Additional monitoring, threat detection, compliance
-
-This phased approach ensures security best practices are established from the beginning and validated with real-world usage before scaling to general availability.
+### Production Secrets (Secret Manager)
+- `DEBUG_ACCESS_TOKEN`: User access token
+- `DISCORD_WEBHOOK_URL`: Discord webhook endpoint
+- `FOURSQUARE_PUSH_SECRET`: Webhook signature verification

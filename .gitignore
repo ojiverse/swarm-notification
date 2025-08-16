@@ -154,3 +154,5 @@ dist
 # Infrastructure secrets
 infra/**/*.tfvars
 !infra/**/*.tfvars.example
+
+CLAUDE.*.md
