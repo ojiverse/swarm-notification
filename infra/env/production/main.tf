@@ -154,8 +154,10 @@ module "workload_identity" {
   github_actions_roles = [
     "roles/artifactregistry.writer",
     "roles/run.admin", 
-    "roles/secretmanager.secretAccessor",
-    "roles/storage.objectAdmin"
+    "roles/secretmanager.admin",
+    "roles/storage.objectAdmin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.workloadIdentityPoolAdmin"
   ]
 }
 
