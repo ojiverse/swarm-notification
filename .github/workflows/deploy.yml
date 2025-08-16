@@ -116,9 +116,19 @@ jobs:
         run: terraform init
         working-directory: infra/env/production
 
-      - name: Update image URL in terraform.tfvars
+      - name: Create terraform.tfvars with new image URL
         run: |
-          sed -i 's|image_url = ".*"|image_url = "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"|' terraform.tfvars
+          cat > terraform.tfvars << EOF
+          # Google Cloud Project Configuration
+          project_id = "${{ env.PROJECT_ID }}"
+          region     = "${{ env.REGION }}"
+          
+          # Container Image (updated by CI/CD)
+          image_url = "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          # Monitoring Configuration (optional)
+          notification_channels = []
+          EOF
         working-directory: infra/env/production
 
       - name: Terraform Plan
