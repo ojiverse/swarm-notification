@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { loadConfig } from "../../config.js";
+import { loadDebugConfig } from "../../config.js";
+import { isDebugAuthenticated } from "../../services/auth.js";
 import {
 	handleCheckinWebhook,
 	validateWebhookPayload,
@@ -7,12 +8,16 @@ import {
 import { logger } from "../../utils/logger.js";
 
 const router = new Hono();
-const config = loadConfig();
+const config = loadDebugConfig();
+const securityLogger = logger.getSubLogger({ name: "security" });
 
 router.get("/health", (c) => {
 	return c.json({
 		status: "healthy",
 		timestamp: new Date().toISOString(),
+		authentication: isDebugAuthenticated(config.debugFoursquareUserId)
+			? "active"
+			: "inactive",
 	});
 });
 
@@ -37,6 +42,15 @@ router.post("/checkin", async (c) => {
 		}
 
 		const payload = validateWebhookPayload(rawPayload);
+
+		// Verify this is the authenticated debug user
+		if (!isDebugAuthenticated(payload.user.id)) {
+			securityLogger.warn("Unauthorized webhook attempt", {
+				userId: payload.user.id,
+				ip: c.req.header("cf-connecting-ip"),
+			});
+			return c.json({ success: false, message: "Unauthorized" }, 200);
+		}
 
 		const result = await handleCheckinWebhook(
 			payload,

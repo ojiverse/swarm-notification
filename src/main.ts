@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { loadConfig } from "./config.js";
+import { loadDebugConfig } from "./config.js";
 import { tslogMiddleware } from "./middleware/logger.js";
+import authRoutes from "./routes/auth/index.js";
 import mainRoutes from "./routes/index.js";
 import webhookRoutes from "./routes/webhook/index.js";
+import { initializeDebugAuth } from "./services/auth.js";
 import { logger } from "./utils/logger.js";
 
 const app = new Hono();
@@ -13,10 +15,22 @@ app.use("*", cors());
 app.use("*", tslogMiddleware());
 
 // Load configuration
-const config = loadConfig();
+const config = loadDebugConfig();
+
+// Initialize debug authentication
+if (config.debugFoursquareUserId && config.debugAccessToken) {
+	initializeDebugAuth(config.debugFoursquareUserId, config.debugAccessToken)
+		.then(() => {
+			logger.info("Debug authentication ready");
+		})
+		.catch((error) => {
+			logger.error("Failed to initialize debug authentication:", error);
+		});
+}
 
 // Routes
 app.route("/", mainRoutes);
+app.route("/auth", authRoutes);
 app.route("/webhook", webhookRoutes);
 
 // Error handler
