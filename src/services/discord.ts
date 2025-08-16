@@ -4,6 +4,9 @@ import type {
 	ParsedCheckin,
 	Venue,
 } from "../types.js";
+import { logger } from "../utils/logger.js";
+
+const discordLogger = logger.getSubLogger({ name: "discord" });
 
 async function sendCheckinToDiscord(
 	checkin: ParsedCheckin,
@@ -18,7 +21,7 @@ async function sendCheckinToDiscord(
 		const response = await postToDiscordWebhook(payload, webhookUrl);
 		return response.ok;
 	} catch (error) {
-		console.error("Failed to send checkin to Discord:", error);
+		discordLogger.error("Failed to send checkin to Discord:", error);
 		return false;
 	}
 }

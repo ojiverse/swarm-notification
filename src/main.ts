@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { loadConfig } from "./config.js";
-import { logger } from "./utils/logger.js";
 import { tslogMiddleware } from "./middleware/logger.js";
 import mainRoutes from "./routes/index.js";
 import webhookRoutes from "./routes/webhook/index.js";
+import { logger } from "./utils/logger.js";
 
 const app = new Hono();
 

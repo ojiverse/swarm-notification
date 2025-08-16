@@ -1,10 +1,14 @@
-import { sendCheckinToDiscord } from "./discord.js";
 import {
 	type ParsedCheckin,
 	ParsedCheckinSchema,
 	type WebhookPayload,
 	WebhookPayloadSchema,
 } from "../types.js";
+import { logger } from "../utils/logger.js";
+
+const webhookLogger = logger.getSubLogger({ name: "webhook" });
+
+import { sendCheckinToDiscord } from "./discord.js";
 
 async function handleCheckinWebhook(
 	payload: WebhookPayload,
@@ -25,7 +29,7 @@ async function handleCheckinWebhook(
 
 		// Send to Discord asynchronously (don't wait for response)
 		processCheckinAsync(checkin, discordWebhookUrl).catch((error) => {
-			console.error("Failed to process checkin asynchronously:", error);
+			webhookLogger.error("Failed to process checkin asynchronously:", error);
 		});
 
 		return {
@@ -33,7 +37,7 @@ async function handleCheckinWebhook(
 			message: "Checkin received and processing",
 		};
 	} catch (error) {
-		console.error("Error handling checkin webhook:", error);
+		webhookLogger.error("Error handling checkin webhook:", error);
 		return {
 			success: false,
 			message: error instanceof Error ? error.message : "Unknown error",
@@ -57,12 +61,12 @@ async function processCheckinAsync(
 	try {
 		const success = await sendCheckinToDiscord(checkin, discordWebhookUrl);
 		if (success) {
-			console.log(`Successfully sent checkin ${checkin.id} to Discord`);
+			webhookLogger.info(`Successfully sent checkin ${checkin.id} to Discord`);
 		} else {
-			console.error(`Failed to send checkin ${checkin.id} to Discord`);
+			webhookLogger.error(`Failed to send checkin ${checkin.id} to Discord`);
 		}
 	} catch (error) {
-		console.error(`Error processing checkin ${checkin.id}:`, error);
+		webhookLogger.error(`Error processing checkin ${checkin.id}:`, error);
 		throw error;
 	}
 }
