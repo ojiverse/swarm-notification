@@ -7,10 +7,14 @@ swarmAuthRouter.get("/login", (c) => {
 	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
 	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
 
+	if (!clientId || !redirectUri) {
+		return c.text("Missing OAuth configuration", 500);
+	}
+
 	const authUrl = new URL("https://foursquare.com/oauth2/authenticate");
-	authUrl.searchParams.set("client_id", clientId!);
+	authUrl.searchParams.set("client_id", clientId);
 	authUrl.searchParams.set("response_type", "code");
-	authUrl.searchParams.set("redirect_uri", redirectUri!);
+	authUrl.searchParams.set("redirect_uri", redirectUri);
 
 	return c.redirect(authUrl.toString());
 });
@@ -31,8 +35,20 @@ swarmAuthRouter.get("/callback", async (c) => {
     `);
 	}
 
+	if (!code) {
+		return c.html(`
+      <html>
+        <body>
+          <h1>Missing Authorization Code</h1>
+          <p>No authorization code received from Foursquare</p>
+          <a href="/auth/swarm/login">Try Again</a>
+        </body>
+      </html>
+    `);
+	}
+
 	try {
-		const tokenResponse = await exchangeCodeForToken(code!);
+		const tokenResponse = await exchangeCodeForToken(code);
 		const userInfo = await getUserInfo(tokenResponse.access_token);
 
 		return c.html(`
