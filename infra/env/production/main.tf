@@ -145,10 +145,7 @@ module "cloud_run" {
 }
 
 # Workload Identity Federation for GitHub Actions
-# Note: This module is managed manually and should not be updated via CI/CD
-# to avoid circular permission dependencies
 module "workload_identity" {
-  count  = var.manage_workload_identity ? 1 : 0
   source = "../../modules/workload_identity"
   
   project_id        = var.project_id
@@ -156,11 +153,13 @@ module "workload_identity" {
   
   github_actions_roles = [
     "roles/artifactregistry.writer",
+    "roles/artifactregistry.admin",
     "roles/run.admin", 
     "roles/secretmanager.admin",
     "roles/storage.objectAdmin",
     "roles/iam.serviceAccountAdmin",
-    "roles/iam.workloadIdentityPoolAdmin"
+    "roles/iam.workloadIdentityPoolAdmin",
+    "roles/resourcemanager.projectIamAdmin"
   ]
 }
 

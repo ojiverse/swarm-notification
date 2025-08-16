@@ -30,9 +30,3 @@ variable "notification_channels" {
   default     = []
 }
 
-# Workload Identity management toggle
-variable "manage_workload_identity" {
-  description = "Whether to manage Workload Identity Federation resources (disabled in CI/CD)"
-  type        = bool
-  default     = true
-}

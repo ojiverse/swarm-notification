@@ -19,18 +19,18 @@ output "secret_names" {
   sensitive   = true
 }
 
-# Workload Identity outputs for GitHub Actions setup (when managed)
+# Workload Identity outputs for GitHub Actions setup
 output "github_secrets" {
   description = "GitHub repository secrets for CI/CD authentication"
-  value       = var.manage_workload_identity ? module.workload_identity[0].github_secrets : null
+  value       = module.workload_identity.github_secrets
 }
 
 output "workload_identity_provider" {
   description = "Workload Identity Provider resource name"
-  value       = var.manage_workload_identity ? module.workload_identity[0].workload_identity_provider_id : null
+  value       = module.workload_identity.workload_identity_provider_id
 }
 
 output "github_actions_service_account" {
   description = "GitHub Actions service account email"
-  value       = var.manage_workload_identity ? module.workload_identity[0].service_account_email : null
+  value       = module.workload_identity.service_account_email
 }
