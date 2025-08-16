@@ -1,5 +1,6 @@
 {
-	"extends": ["@tsconfig/strictest/tsconfig.json"],
+	"$schema": "https://www.schemastore.org/tsconfig",
+	"extends": ["../../tsconfig.json"],
 	"compilerOptions": {
 		"target": "ES2022",
 		"module": "ESNext",
