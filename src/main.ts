@@ -1,6 +1,6 @@
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { serve } from "@hono/node-server";
 import { loadDebugConfig } from "./config.js";
 import { tslogMiddleware } from "./middleware/logger.js";
 import authRoutes from "./routes/auth/index.js";
@@ -50,10 +50,11 @@ function createApp(): Hono {
 
 // Initialize application
 async function main(): Promise<void> {
+	logger.info(`environment: ${process.env["NODE_ENV"] ?? "development"}`);
 	try {
 		// Create app
 		const app = createApp();
-		
+
 		// Load configuration
 		const config = loadDebugConfig();
 		logger.info("Configuration loaded", {
@@ -64,7 +65,10 @@ async function main(): Promise<void> {
 
 		// Initialize debug authentication if credentials are available
 		if (config.debugFoursquareUserId && config.debugAccessToken) {
-			await initializeDebugAuth(config.debugFoursquareUserId, config.debugAccessToken);
+			await initializeDebugAuth(
+				config.debugFoursquareUserId,
+				config.debugAccessToken,
+			);
 			logger.info("Debug authentication initialized");
 		} else {
 			logger.warn("Debug authentication not initialized - missing credentials");
@@ -94,7 +98,6 @@ async function main(): Promise<void> {
 
 		process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 		process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
 	} catch (error) {
 		logger.error("Failed to initialize application:", error);
 		process.exit(1);
