@@ -1,348 +1,124 @@
 # Manual Deployment Guide
 
+This guide explains how to manually deploy application changes to the Cloud Run service after making code modifications.
+
 ## Prerequisites
 
-1. **Google Cloud CLI installed and configured**
-   ```bash
-   # Create a dedicated configuration profile for this project
-   gcloud config configurations create swarm-project
-   
-   # Authenticate with Google Cloud
-   gcloud auth login
-   
-   # Set up Application Default Credentials for Terraform
-   gcloud auth application-default login
-   
-   # Set your project ID (replace with your actual project ID)
-   gcloud config set project YOUR_PROJECT_ID
-   
-   # Set default region (optional)
-   gcloud config set compute/region us-central1
-   
-   # Verify the configuration
-   gcloud config list
-   gcloud auth list
-   ```
+- Docker installed and configured
+- Google Cloud CLI (`gcloud`) installed and authenticated
+- Access to the `swarm-notifier` Google Cloud project
+- Docker authentication configured for Artifact Registry
 
-2. **Terraform installed** (version >= 1.0)
-   ```bash
-   terraform --version
-   ```
+## Deployment Process
 
-3. **Docker installed**
-   ```bash
-   docker --version
-   ```
+### 1. Build and Push Docker Image
 
-## Authentication Details
-
-**Two types of authentication are set up:**
-
-1. **User Authentication** (`gcloud auth login`)
-   - For gcloud CLI commands
-   - Interactive operations
-
-2. **Application Default Credentials** (`gcloud auth application-default login`)
-   - For Terraform and other tools
-   - Programmatic access to Google Cloud APIs
-
-## Configuration Profile Management
-
-To switch between different Google Cloud projects or manage multiple configurations:
+From the project root directory:
 
 ```bash
-# List all configurations
-gcloud config configurations list
+# Build the Docker image using Cloud Build (recommended)
+gcloud builds submit --tag us-central1-docker.pkg.dev/swarm-notifier/swarm-api/swarm-notifier:latest .
 
-# Activate the swarm-project configuration
-gcloud config configurations activate swarm-project
-
-# Switch to another configuration
-gcloud config configurations activate default
-
-# Delete the configuration (cleanup)
-gcloud config configurations delete swarm-project
-
-# If you need to revoke ADC (troubleshooting)
-gcloud auth application-default revoke
+# Alternative: Build locally and push (if Docker daemon access available)
+docker build -t us-central1-docker.pkg.dev/swarm-notifier/swarm-api/swarm-notifier:latest .
+docker push us-central1-docker.pkg.dev/swarm-notifier/swarm-api/swarm-notifier:latest
 ```
 
-**Note**: When switching profiles, you may need to re-run `gcloud auth application-default login` if Terraform cannot access resources.
+### 2. Deploy to Cloud Run
 
-## Initial Setup (One-time Bootstrap)
-
-### 1. Create Terraform State Backend
-
-Before deploying the main infrastructure, we need to create a GCS bucket for Terraform state management.
+After the image is successfully pushed to Artifact Registry, deploy using Terraform:
 
 ```bash
-# Navigate to bootstrap directory
-cd infra/bootstrap
+# Navigate to production environment
+cd infra/env/production
 
-# Copy and configure variables
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your project_id
-
-# Initialize and apply bootstrap
-terraform init
-terraform plan
+# Apply Terraform configuration to deploy new image
 terraform apply
 ```
 
-This creates:
-- Enables all required Google Cloud APIs
-- GCS bucket for Terraform state storage
-- Service account for Terraform operations
-- Necessary IAM permissions
+The deployment will:
+- Pull the latest image from Artifact Registry
+- Create a new Cloud Run revision
+- Route 100% traffic to the new revision
+- Maintain zero-downtime deployment
 
-### 2. Migrate to Remote State
+### 3. Verify Deployment
 
-```bash
-# Run the migration script from project root
-./infra/scripts/migrate-to-gcs.sh
-```
-
-This script:
-- Updates backend configuration in production environment
-- Migrates local state to GCS
-- Cleans up local state files
-
-## Deployment Steps
-
-### 1. Configure Terraform Variables
+Check the deployment status:
 
 ```bash
-cd infra/env/production
-cp terraform.tfvars.example terraform.tfvars
+# Check service status
+gcloud run services describe swarm-api --region=us-central1 --project=swarm-notifier
+
+# View recent logs
+gcloud logs read "resource.type=cloud_run_revision AND resource.labels.service_name=swarm-api" --limit=50 --project=swarm-notifier
+
+# Test the service endpoint
+curl https://swarm-api-oj7mv2xyia-uc.a.run.app/webhook/health
 ```
 
-Edit `terraform.tfvars` with your actual values:
-- `project_id`: Your GCP project ID
-- `region`: GCP region (default: us-central1)
-- `image_url`: Container image URL (update after building and pushing)
+### 4. Rollback (if needed)
 
-Example `terraform.tfvars`:
-```hcl
-project_id = "my-swarm-project-123"
-region     = "us-central1"  
-image_url  = "us-central1-docker.pkg.dev/my-swarm-project-123/swarm-api/swarm-api:latest"
-```
-
-**Note**: All application secrets are managed via Google Cloud Console for enhanced security. None are configured through Terraform variables.
-
-### 2. Initialize Terraform
+If the deployment fails or issues are detected:
 
 ```bash
-cd infra/env/production
-terraform init
+# List revisions
+gcloud run revisions list --service=swarm-api --region=us-central1 --project=swarm-notifier
+
+# Rollback to previous revision
+gcloud run services update-traffic swarm-api --to-revisions=PREVIOUS_REVISION=100 --region=us-central1 --project=swarm-notifier
 ```
 
-Note: If you've completed the bootstrap process, Terraform will automatically use the GCS backend.
+## Docker Authentication Setup
 
-### 3. Plan Infrastructure
-
-```bash
-terraform plan
-```
-
-Review the planned changes carefully.
-
-### 4. Create Base Infrastructure
-
-Create the foundational infrastructure (Artifact Registry, Secret Manager, monitoring):
+If you encounter authentication errors when pushing to Artifact Registry:
 
 ```bash
-terraform apply -target=module.artifact_registry -target=module.secret_manager -target=module.logging
-```
-
-### 5. Build and Push Container Image
-
-```bash
-# Go back to project root
-cd ../../../
-
-# Get the Artifact Registry URL from Terraform output
-REGISTRY_URL=$(cd infra/env/production && terraform output -raw artifact_registry_url)
-
 # Configure Docker authentication
 gcloud auth configure-docker us-central1-docker.pkg.dev
 
-# Build the image
-docker build -t swarm-api .
-
-# Tag the image
-docker tag swarm-api $REGISTRY_URL/swarm-api:latest
-
-# Push the image
-docker push $REGISTRY_URL/swarm-api:latest
+# For sudo Docker usage
+sudo gcloud auth configure-docker us-central1-docker.pkg.dev
 ```
 
-### 6. Update Terraform Variables
+## Alternative: Direct Cloud Run Deployment
 
-Update `terraform.tfvars` with the actual image URL:
-```bash
-# Edit the file
-image_url = "us-central1-docker.pkg.dev/YOUR_PROJECT_ID/swarm-api/swarm-api:latest"
-```
-
-### 7. Set Secrets Manually via Google Cloud Console
-
-**IMPORTANT**: Set all secrets before deploying Cloud Run, as the service will fail to start without them.
+You can also deploy directly using `gcloud run deploy` (bypasses Terraform):
 
 ```bash
-# Run the guided setup script
-./infra/scripts/set-secrets-manual.sh
+gcloud run deploy swarm-api \
+  --image=us-central1-docker.pkg.dev/swarm-notifier/swarm-api/swarm-notifier:latest \
+  --region=us-central1 \
+  --project=swarm-notifier \
+  --allow-unauthenticated
 ```
 
-Or set them directly in the Google Cloud Console:
+**Note**: Direct deployment may cause Terraform state drift. Always prefer Terraform for production deployments.
 
-1. **Navigate to Secret Manager**: https://console.cloud.google.com/security/secret-manager
-2. **Set the following secrets by creating new versions**:
-   - `foursquare-client-id`: Your Foursquare OAuth client ID
-   - `foursquare-client-secret`: Your Foursquare OAuth client secret
-   - `foursquare-push-secret`: Your Foursquare Push API secret
-   - `debug-foursquare-user-id`: Your Foursquare user ID
-   - `debug-access-token`: Your Foursquare access token
-   - `discord-webhook-url`: Your Discord webhook URL
+## Monitoring Deployment
 
-### 8. Deploy Complete Infrastructure
-
-Now deploy the complete infrastructure including Cloud Run:
-
-```bash
-cd infra/env/production
-
-# Deploy everything
-terraform apply
-```
-
-### 9. Verify Deployment
-
-```bash
-# Get the service URL
-SERVICE_URL=$(terraform output -raw service_url)
-
-# Test health endpoint
-curl $SERVICE_URL/webhook/health
-
-# Expected response:
-# {"status":"healthy","timestamp":"...","authentication":"active"}
-```
-
-### 10. Update Foursquare Push API Settings
-
-1. Go to [Foursquare Developer Console](https://foursquare.com/developers/apps)
-2. Select your app
-3. Navigate to Push API settings
-4. Update **Push URL** to: `{SERVICE_URL}/webhook/checkin`
-5. Save settings
-
-## Updating the Application
-
-### 1. Build and Push New Image
-
-```bash
-# Build new version
-docker build -t swarm-api .
-
-# Tag with new version
-docker tag swarm-api $REGISTRY_URL/swarm-api:v1.1.0
-docker tag swarm-api $REGISTRY_URL/swarm-api:latest
-
-# Push both tags
-docker push $REGISTRY_URL/swarm-api:v1.1.0
-docker push $REGISTRY_URL/swarm-api:latest
-```
-
-### 2. Update Cloud Run Service
-
-```bash
-cd infra/env/production
-
-# Terraform will detect the new image and update the service
-terraform apply
-```
-
-## Monitoring and Debugging
-
-### View Logs
-
-```bash
-# Cloud Run logs
-gcloud logs read "resource.type=cloud_run_revision" --limit=50
-
-# Filter by service
-gcloud logs read "resource.type=cloud_run_revision AND resource.labels.service_name=swarm-api" --limit=50
-```
-
-### Check Service Status
-
-```bash
-# Service status
-gcloud run services describe swarm-api --region=us-central1
-
-# Recent revisions
-gcloud run revisions list --service=swarm-api --region=us-central1
-```
-
-### View Secrets
-
-```bash
-# List secrets
-gcloud secrets list
-
-# View secret versions (not values)
-gcloud secrets versions list debug-access-token
-```
+- **Cloud Console**: https://console.cloud.google.com/run/detail/us-central1/swarm-api/revisions?project=swarm-notifier
+- **Logs**: https://console.cloud.google.com/logs/query?project=swarm-notifier
+- **Service URL**: https://swarm-api-oj7mv2xyia-uc.a.run.app
 
 ## Troubleshooting
 
-### Common Issues
+### Build Failures
+- Check Dockerfile syntax and dependencies
+- Verify all required files are included (not in .dockerignore)
+- Check Cloud Build logs for detailed error messages
 
-1. **Container build fails**
-   - Check Dockerfile syntax
-   - Ensure all dependencies are properly installed
-   - Verify TypeScript compilation succeeds locally
+### Deployment Failures
+- Verify image exists in Artifact Registry
+- Check Cloud Run service logs for startup errors
+- Ensure all required environment variables are set in Secret Manager
 
-2. **Cloud Run deployment fails**
-   - Check image exists in Artifact Registry
-   - Verify service account permissions
-   - Check Cloud Run service logs
+### Service Not Responding
+- Check if service is listening on correct port (8080)
+- Verify health check endpoint `/webhook/health`
+- Review application logs for runtime errors
 
-3. **Authentication not working**
-   - Verify secrets are properly set
-   - Check service account has Secret Manager access
-   - Ensure environment variables are correctly configured
-
-4. **Webhook not receiving requests**
-   - Verify Foursquare Push API URL is correct
-   - Check Cloud Run service is publicly accessible
-   - Ensure webhook endpoint responds correctly
-
-### Cleanup
-
-To destroy all infrastructure:
-
-```bash
-cd infra/env/production
-terraform destroy
-```
-
-**Warning**: This will delete all resources including secrets. Make sure to backup any important data first.
-
-## Security Notes
-
-- **Never commit sensitive values**: All secrets are managed via Google Cloud Console
-- **Terraform state security**: No sensitive data is stored in Terraform state
-- **Rotate secrets periodically**: Update secret versions in Secret Manager
-- **Monitor access logs**: Use Cloud Logging to track access patterns
-- **Least privilege IAM**: Service accounts have minimal required permissions
-- **Audit logging**: Enable audit logs for production environments
-- **Secret Manager encryption**: All secrets are encrypted at rest automatically
-
-## Important Security Reminders
-
-1. **No secrets in code**: All application secrets are exclusively managed via Secret Manager
-2. **GCS backend**: Terraform state is stored securely in Google Cloud Storage
-3. **Manual secret management**: Use only Google Cloud Console to set actual secret values
-4. **Version control safety**: Only `terraform.tfvars.example` files are committed
+### Authentication Issues
+- Ensure service account has necessary permissions
+- Verify Secret Manager values are properly configured
+- Check IAM bindings for Cloud Run and Secret Manager access
