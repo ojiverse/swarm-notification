@@ -5,12 +5,19 @@
 	"type": "module",
 	"main": "./dist/main.js",
 	"scripts": {
+		"prepare": "simple-git-hooks",
 		"dev": "dotenv -e .env.local -- tsx ./src/main.ts",
 		"build": "tsgo",
 		"format": "biome check --write --unsafe .",
 		"check:format": "biome check .",
 		"check:types": "tsgo --noEmit ."
 	},
+	"lint-staged": {
+		"*": "secretlint"
+	},
+	"simple-git-hooks": {
+   		"pre-commit": "pnpm exec lint-staged"
+  	},
 	"keywords": [],
 	"author": "OldBigBuddha<contact@oldbigbuddha.net>",
 	"license": "MIT",
@@ -22,7 +29,9 @@
 		"@types/node": "24.3.0",
 		"@typescript/native-preview": "7.0.0-dev.20250815.1",
 		"dotenv-cli": "10.0.0",
+		"lint-staged": "16.1.5",
 		"secretlint": "11.0.2",
+		"simple-git-hooks": "2.13.1",
 		"tsx": "4.20.4",
 		"typescript": "5.9.2"
 	},
