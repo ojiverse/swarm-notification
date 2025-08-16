@@ -85,7 +85,7 @@ PORT=3000
 ### 2. 依存関係のインストール
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 3. 開発用トンネリング（Cloudflare Tunnel推奨）
@@ -105,13 +105,13 @@ cloudflared tunnel --url http://localhost:3000
 
 ```bash
 # 開発モード（ホットリロード付き）
-npm run dev
+pnpm run dev
 
 # モックサーバー（テスト用）
-npm run mock
+pnpm run mock
 
 # 全部まとめて起動
-npm run dev:all
+pnpm run dev:all
 ```
 
 ## ファイル構成
@@ -272,7 +272,7 @@ gcloud run deploy swarm-webhook \
 ### デプロイ手順
 1. Google Cloud CLI の設定
 2. 本番用環境変数の設定（Cloud ConsoleのSecret Manager推奨）
-3. TypeScriptのビルド (`npm run build`)
+3. TypeScriptのビルド (`pnpm run build`)
 4. 上記コマンドでデプロイ
 5. Foursquare Developer ConsoleでWebhook URL更新
 
