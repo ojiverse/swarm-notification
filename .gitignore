@@ -142,3 +142,15 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# Infrastructure secrets
+infra/**/*.tfvars
+!infra/**/*.tfvars.example

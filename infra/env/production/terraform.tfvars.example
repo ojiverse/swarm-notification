@@ -1,0 +1,17 @@
+# Google Cloud Project Configuration
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# Container Image (update this after building and pushing to Artifact Registry)
+image_url = "us-central1-docker.pkg.dev/your-project-id/swarm-api/swarm-api:latest"
+
+# All secrets are now managed via Google Cloud Console for enhanced security:
+# - foursquare_client_id (OAuth client ID)
+# - foursquare_client_secret (OAuth client secret)
+# - foursquare_push_secret (Push API secret)
+# - debug_foursquare_user_id (Debug user ID)
+# - debug_access_token (Debug user token)
+# - discord_webhook_url (Discord webhook URL)
+
+# Monitoring Configuration (optional)
+notification_channels = []
