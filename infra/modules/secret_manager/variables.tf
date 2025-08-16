@@ -8,8 +8,8 @@ variable "secrets" {
   type = map(object({
     value       = string
     description = string
-    use_dummy   = optional(bool, false)
-    dummy_value = optional(string, "PLACEHOLDER_SET_VIA_CONSOLE")
+    use_dummy   = bool
+    dummy_value = string
   }))
 }
 
