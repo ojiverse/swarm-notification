@@ -10,19 +10,24 @@ resource "google_secret_manager_secret" "secrets" {
   }
 }
 
-resource "google_secret_manager_secret_version" "secret_versions" {
-  for_each = var.secrets
+# Secret versions for dummy values (managed by Terraform)
+resource "google_secret_manager_secret_version" "dummy_secret_versions" {
+  for_each = { for k, v in var.secrets : k => v if v.use_dummy }
 
   secret      = google_secret_manager_secret.secrets[each.key].id
-  secret_data = each.value.use_dummy ? each.value.dummy_value : each.value.value
+  secret_data = each.value.dummy_value
   
-  # Lifecycle rule to prevent Terraform from overwriting manually set values
-  dynamic "lifecycle" {
-    for_each = each.value.use_dummy ? [1] : []
-    content {
-      ignore_changes = [secret_data]
-    }
+  lifecycle {
+    ignore_changes = [secret_data]
   }
+}
+
+# Secret versions for real values (not managed by Terraform after initial creation)
+resource "google_secret_manager_secret_version" "real_secret_versions" {
+  for_each = { for k, v in var.secrets : k => v if !v.use_dummy }
+
+  secret      = google_secret_manager_secret.secrets[each.key].id
+  secret_data = each.value.value
 }
 
 resource "google_secret_manager_secret_iam_member" "cloud_run_access" {

@@ -4,8 +4,24 @@
 
 1. **Google Cloud CLI installed and configured**
    ```bash
+   # Create a dedicated configuration profile for this project
+   gcloud config configurations create swarm-project
+   
+   # Authenticate with Google Cloud
    gcloud auth login
+   
+   # Set up Application Default Credentials for Terraform
+   gcloud auth application-default login
+   
+   # Set your project ID (replace with your actual project ID)
    gcloud config set project YOUR_PROJECT_ID
+   
+   # Set default region (optional)
+   gcloud config set compute/region us-central1
+   
+   # Verify the configuration
+   gcloud config list
+   gcloud auth list
    ```
 
 2. **Terraform installed** (version >= 1.0)
@@ -17,6 +33,41 @@
    ```bash
    docker --version
    ```
+
+## Authentication Details
+
+**Two types of authentication are set up:**
+
+1. **User Authentication** (`gcloud auth login`)
+   - For gcloud CLI commands
+   - Interactive operations
+
+2. **Application Default Credentials** (`gcloud auth application-default login`)
+   - For Terraform and other tools
+   - Programmatic access to Google Cloud APIs
+
+## Configuration Profile Management
+
+To switch between different Google Cloud projects or manage multiple configurations:
+
+```bash
+# List all configurations
+gcloud config configurations list
+
+# Activate the swarm-project configuration
+gcloud config configurations activate swarm-project
+
+# Switch to another configuration
+gcloud config configurations activate default
+
+# Delete the configuration (cleanup)
+gcloud config configurations delete swarm-project
+
+# If you need to revoke ADC (troubleshooting)
+gcloud auth application-default revoke
+```
+
+**Note**: When switching profiles, you may need to re-run `gcloud auth application-default login` if Terraform cannot access resources.
 
 ## Initial Setup (One-time Bootstrap)
 

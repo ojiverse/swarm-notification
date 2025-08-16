@@ -105,7 +105,6 @@ module "cloud_run" {
   
   environment_variables = {
     NODE_ENV                = "production"
-    PORT                    = "8080"
     FOURSQUARE_REDIRECT_URI = "https://${local.service_name}-${random_id.suffix.hex}-uc.a.run.app/auth/swarm/callback"
   }
   
@@ -152,10 +151,10 @@ module "logging" {
   project_id   = var.project_id
   service_name = local.service_name
   
-  enable_error_alerts   = true
+  enable_error_alerts   = false
   error_rate_threshold  = 0.1
   
-  enable_latency_alerts = true
+  enable_latency_alerts = false
   latency_threshold_ms  = 5000
   
   notification_channels = var.notification_channels
