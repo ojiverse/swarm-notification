@@ -31,7 +31,24 @@ app.get("/webhook/health", (c) => {
 
 app.post("/webhook/checkin", async (c) => {
 	try {
-		const rawPayload = await c.req.json();
+		const contentType = c.req.header("content-type") || "";
+		let rawPayload: unknown;
+
+		if (contentType.includes("application/json")) {
+			// JSON format
+			rawPayload = await c.req.json();
+		} else if (contentType.includes("application/x-www-form-urlencoded")) {
+			// Form data format (Foursquare default)
+			const formData = await c.req.formData();
+			rawPayload = {
+				user: JSON.parse(formData.get("user") as string),
+				checkin: formData.get("checkin") as string,
+				secret: formData.get("secret") as string,
+			};
+		} else {
+			throw new Error(`Unsupported content type: ${contentType}`);
+		}
+
 		const payload = validateWebhookPayload(rawPayload);
 
 		const result = await handleCheckinWebhook(
@@ -81,3 +98,14 @@ app.notFound((c) => {
 
 // Cloud Functions export
 export default app;
+
+// Node.js server for local development
+if (import.meta.url === `file://${process.argv[1]}`) {
+	import("@hono/node-server").then(({ serve }) => {
+		console.log(`🚀 Starting Swarm API server on port ${config.port}`);
+		serve({
+			fetch: app.fetch,
+			port: config.port,
+		});
+	});
+}
