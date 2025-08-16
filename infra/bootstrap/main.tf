@@ -65,9 +65,7 @@ resource "google_storage_bucket" "terraform_state" {
   uniform_bucket_level_access = true
   
   # Encryption (Google-managed by default)
-  encryption {
-    default_kms_key_name = null
-  }
+  # Remove encryption block to use Google-managed encryption
   
   # Lifecycle rules
   lifecycle_rule {
