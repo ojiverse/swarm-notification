@@ -144,6 +144,21 @@ module "cloud_run" {
   allow_unauthenticated = true
 }
 
+# Workload Identity Federation for GitHub Actions
+module "workload_identity" {
+  source = "../../modules/workload_identity"
+  
+  project_id        = var.project_id
+  github_repository = "ojiverse/swarm-notification"
+  
+  github_actions_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.admin", 
+    "roles/secretmanager.secretAccessor",
+    "roles/storage.objectAdmin"
+  ]
+}
+
 # Logging and Monitoring
 module "logging" {
   source = "../../modules/logging"
