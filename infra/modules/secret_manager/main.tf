@@ -17,8 +17,11 @@ resource "google_secret_manager_secret_version" "secret_versions" {
   secret_data = each.value.use_dummy ? each.value.dummy_value : each.value.value
   
   # Lifecycle rule to prevent Terraform from overwriting manually set values
-  lifecycle {
-    ignore_changes = each.value.use_dummy ? [secret_data] : []
+  dynamic "lifecycle" {
+    for_each = each.value.use_dummy ? [1] : []
+    content {
+      ignore_changes = [secret_data]
+    }
   }
 }
 

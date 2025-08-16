@@ -9,10 +9,10 @@ terraform {
   }
   
   # GCS backend configuration (uncomment after bootstrap)
-  # backend "gcs" {
-  #   bucket = "YOUR_PROJECT_ID-terraform-state-SUFFIX"
-  #   prefix = "env/production"
-  # }
+  backend "gcs" {
+    bucket = "swarm-notifier-terraform-state-d629960d"
+    prefix = "env/production"
+  }
 }
 
 provider "google" {
