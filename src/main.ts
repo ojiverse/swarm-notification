@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
+import { tslogMiddleware } from "./middleware/logger.js";
 import mainRoutes from "./routes/index.js";
 import webhookRoutes from "./routes/webhook/index.js";
 
@@ -10,7 +10,7 @@ const app = new Hono();
 
 // Middleware
 app.use("*", cors());
-app.use("*", honoLogger());
+app.use("*", tslogMiddleware());
 
 // Load configuration
 const config = loadConfig();
