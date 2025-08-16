@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Backend CI/CD Pipeline
 
 on:
   push:
@@ -40,13 +40,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check code formatting
-        run: pnpm check:format
+        run: pnpm backend check:format
 
       - name: Run type checking
-        run: pnpm check:types
+        run: pnpm backend check:types
 
       - name: Build application
-        run: pnpm build
+        run: pnpm backend build
 
   deploy:
     name: Deploy to Cloud Run
@@ -75,7 +75,7 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./packages/backend
           push: false
           load: true
           tags: |
@@ -100,7 +100,7 @@ jobs:
       - name: Push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./packages/backend
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:latest

@@ -3,18 +3,19 @@ FROM node:24.6.0-alpine3.22 AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy workspace and package files
+COPY ../../package.json ../../pnpm-lock.yaml ../../pnpm-workspace.yaml ./
+COPY package.json ./packages/backend/
 
 # Install tini and pnpm, then dependencies
 RUN apk add --no-cache tini && \
     npm install -g pnpm && pnpm install --frozen-lockfile
 
 # Copy source code
-COPY . .
+COPY . ./packages/backend/
 
 # Build the application
-RUN pnpm build
+RUN pnpm --filter backend build
 
 # Production stage with init
 FROM node:24.6.0-alpine3.22 AS production
@@ -29,13 +30,13 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy built application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/dist ./dist
 
 # Copy production dependencies from builder
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy package.json for any runtime needs
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/package.json ./package.json
 
 # Switch to non-root user
 USER nodejs
