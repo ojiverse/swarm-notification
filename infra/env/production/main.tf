@@ -159,7 +159,8 @@ module "workload_identity" {
     "roles/storage.objectAdmin",
     "roles/iam.serviceAccountAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
-    "roles/resourcemanager.projectIamAdmin"
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/iam.serviceAccountUser"
   ]
 }
 
