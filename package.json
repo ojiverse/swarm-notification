@@ -1,0 +1,29 @@
+{
+	"name": "swarm",
+	"version": "1.0.0",
+	"description": "",
+	"main": "./dist/main.js",
+	"scripts": {
+		"dev": "dotenv -e .env.local -- tsx ./src/main.ts",
+		"build": "tsgo",
+		"format": "biome check --write --unsafe .",
+		"check:format": "biome check .",
+		"check:types": "tsgo --noEmit ."
+	},
+	"keywords": [],
+	"author": "OldBigBuddha<contact@oldbigbuddha.net>",
+	"license": "MIT",
+	"packageManager": "pnpm@10.14.0",
+	"devDependencies": {
+		"@biomejs/biome": "2.2.0",
+		"@tsconfig/strictest": "2.0.5",
+		"@types/node": "24.3.0",
+		"@typescript/native-preview": "7.0.0-dev.20250815.1",
+		"dotenv-cli": "10.0.0",
+		"tsx": "4.20.4",
+		"typescript": "5.9.2"
+	},
+	"dependencies": {
+		"tslog": "4.9.3"
+	}
+}
