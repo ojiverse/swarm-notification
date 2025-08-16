@@ -123,6 +123,7 @@ jobs:
           TF_VAR_region: ${{ env.REGION }}
           TF_VAR_image_url: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           TF_VAR_notification_channels: "[]"
+          TF_VAR_manage_workload_identity: "false"
         working-directory: infra/env/production
 
       - name: Terraform Apply
@@ -132,6 +133,7 @@ jobs:
           TF_VAR_region: ${{ env.REGION }}
           TF_VAR_image_url: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           TF_VAR_notification_channels: "[]"
+          TF_VAR_manage_workload_identity: "false"
         working-directory: infra/env/production
 
       - name: Get service URL
