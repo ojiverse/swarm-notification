@@ -3,8 +3,14 @@ name: Backend CI/CD Pipeline
 on:
   push:
     branches: [main]
+    paths:
+      - 'packages/backend/**'
+      - '.github/workflows/deploy-backend.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'packages/backend/**'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
 env:
