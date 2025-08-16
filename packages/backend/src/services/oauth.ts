@@ -3,9 +3,9 @@ import type { TokenResponse, UserInfo } from "../types/oauth.js";
 export const exchangeCodeForToken = async (
 	code: string,
 ): Promise<TokenResponse> => {
-	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
-	const clientSecret = process.env["FOURSQUARE_CLIENT_SECRET"];
-	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
+	const clientId = process.env.FOURSQUARE_CLIENT_ID;
+	const clientSecret = process.env.FOURSQUARE_CLIENT_SECRET;
+	const redirectUri = process.env.FOURSQUARE_REDIRECT_URI;
 
 	if (!clientId || !clientSecret || !redirectUri) {
 		throw new Error("Missing required OAuth environment variables");

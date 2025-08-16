@@ -42,7 +42,7 @@ function generateMockCheckinData(): WebhookPayload {
 	return {
 		user: mockCheckin.user,
 		checkin: JSON.stringify(mockCheckin),
-		secret: process.env["FOURSQUARE_PUSH_SECRET"] || "mock_secret",
+		secret: process.env.FOURSQUARE_PUSH_SECRET || "mock_secret",
 	};
 }
 
