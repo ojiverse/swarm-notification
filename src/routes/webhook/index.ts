@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { loadConfig } from "../../config.js";
+import { logger } from "../../logger.js";
 import { handleCheckinWebhook, validateWebhookPayload } from "../../webhook.js";
 
 const router = new Hono();
@@ -43,7 +44,7 @@ router.post("/checkin", async (c) => {
 		// Always return 200 OK for webhooks (Foursquare requirement)
 		return c.json(result, 200);
 	} catch (error) {
-		console.error("Webhook endpoint error:", error);
+		logger.error("Webhook endpoint error:", error);
 
 		// Always return 200 OK for webhooks, even on error
 		return c.json(

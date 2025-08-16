@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config.js";
+import { logger } from "./logger.js";
 import mainRoutes from "./routes/index.js";
 import webhookRoutes from "./routes/webhook/index.js";
 
@@ -9,7 +10,7 @@ const app = new Hono();
 
 // Middleware
 app.use("*", cors());
-app.use("*", logger());
+app.use("*", honoLogger());
 
 // Load configuration
 const config = loadConfig();
@@ -20,7 +21,7 @@ app.route("/webhook", webhookRoutes);
 
 // Error handler
 app.onError((err, c) => {
-	console.error("Application error:", err);
+	logger.error("Application error:", err);
 	return c.json(
 		{
 			error: "Internal server error",
@@ -47,7 +48,7 @@ export default app;
 // Node.js server for local development
 if (import.meta.url === `file://${process.argv[1]}`) {
 	import("@hono/node-server").then(({ serve }) => {
-		console.log(`🚀 Starting Swarm API server on port ${config.port}`);
+		logger.info(`🚀 Starting Swarm API server on port ${config.port}`);
 		serve({
 			fetch: app.fetch,
 			port: config.port,
