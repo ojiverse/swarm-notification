@@ -85,11 +85,17 @@ router.post("/checkin", async (c) => {
 
 		const payload = validateWebhookPayload(rawPayload);
 
+		// Get client IP for security logging
+		const clientIp =
+			c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+			c.req.header("x-real-ip") ||
+			"unknown";
+
 		const result = await handleCheckinWebhook(
 			payload,
 			config.discordWebhookUrl,
 			config.foursquarePushSecret,
-			c.req.header("cf-connecting-ip"),
+			clientIp,
 		);
 
 		// Always return 200 OK for webhooks (Foursquare requirement)
