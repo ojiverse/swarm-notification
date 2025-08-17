@@ -113,9 +113,9 @@ async function postToDiscordWebhook(
 	});
 }
 
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_TARGET_SERVER_ID = process.env.DISCORD_TARGET_SERVER_ID;
+const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
+const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
+const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
 	throw new Error(
@@ -129,12 +129,17 @@ const DISCORD_OAUTH_BASE = "https://discord.com/oauth2";
 export async function exchangeCodeForToken(code: string): Promise<string> {
 	try {
 		const tokenUrl = `${DISCORD_OAUTH_BASE}/token`;
+		const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"]?.replace(
+			"/auth/swarm/callback",
+			"/auth/discord/callback",
+		);
+
 		const params = new URLSearchParams({
-			client_id: DISCORD_CLIENT_ID,
-			client_secret: DISCORD_CLIENT_SECRET,
+			client_id: DISCORD_CLIENT_ID!,
+			client_secret: DISCORD_CLIENT_SECRET!,
 			grant_type: "authorization_code",
 			code,
-			redirect_uri: `${process.env.FOURSQUARE_REDIRECT_URI?.replace("/auth/swarm/callback", "/auth/discord/callback")}`,
+			redirect_uri: redirectUri || "",
 		});
 
 		const response = await fetch(tokenUrl, {
@@ -269,13 +274,13 @@ export function isServerMember(
 }
 
 export function getDiscordOAuthURL(): string {
-	const redirectUri = process.env.FOURSQUARE_REDIRECT_URI?.replace(
+	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"]?.replace(
 		"/auth/swarm/callback",
 		"/auth/discord/callback",
 	);
 
 	const params = new URLSearchParams({
-		client_id: DISCORD_CLIENT_ID,
+		client_id: DISCORD_CLIENT_ID!,
 		redirect_uri: redirectUri || "",
 		response_type: "code",
 		scope: "identify guilds",

@@ -12,7 +12,7 @@ import { logger } from "../../utils/logger.js";
 
 const authLogger = logger.getSubLogger({ name: "auth.discord" });
 
-const DISCORD_TARGET_SERVER_ID = process.env.DISCORD_TARGET_SERVER_ID;
+const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
 if (!DISCORD_TARGET_SERVER_ID) {
 	throw new Error("DISCORD_TARGET_SERVER_ID environment variable is required");
 }
@@ -48,7 +48,7 @@ export async function discordCallback(c: Context): Promise<Response> {
 		const guilds = await getUserGuilds(accessToken);
 
 		// Verify server membership
-		if (!isServerMember(guilds, DISCORD_TARGET_SERVER_ID)) {
+		if (!isServerMember(guilds, DISCORD_TARGET_SERVER_ID!)) {
 			authLogger.warn("Discord user not member of target server", {
 				discordUserId: discordUser.id,
 				discordUsername: discordUser.username,
@@ -69,7 +69,9 @@ export async function discordCallback(c: Context): Promise<Response> {
 				user = await userRepository.createUser({
 					discordUserId: discordUser.id,
 					discordUsername: discordUser.username,
-					discordDisplayName: discordUser.global_name,
+					...(discordUser.global_name && {
+						discordDisplayName: discordUser.global_name,
+					}),
 				});
 				authLogger.info("New Discord user created", {
 					discordUserId: discordUser.id,
@@ -79,7 +81,9 @@ export async function discordCallback(c: Context): Promise<Response> {
 				// Update existing user
 				user = await userRepository.updateUser(discordUser.id, {
 					discordUsername: discordUser.username,
-					discordDisplayName: discordUser.global_name,
+					...(discordUser.global_name && {
+						discordDisplayName: discordUser.global_name,
+					}),
 				});
 				authLogger.info("Discord user updated", {
 					discordUserId: discordUser.id,

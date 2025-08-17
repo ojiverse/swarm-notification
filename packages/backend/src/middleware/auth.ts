@@ -7,7 +7,7 @@ import { logger } from "../utils/logger.js";
 const JWT_COOKIE_NAME = "auth_token";
 const COOKIE_OPTIONS = {
 	httpOnly: true,
-	secure: process.env.NODE_ENV === "production",
+	secure: process.env["NODE_ENV"] === "production",
 	sameSite: "strict" as const,
 	maxAge: 60 * 60 * 24 * 7, // 7 days
 	path: "/",
@@ -61,6 +61,7 @@ export function jwtAuth(): MiddlewareHandler<{
 		});
 
 		await next();
+		return;
 	};
 }
 

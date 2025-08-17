@@ -1,6 +1,8 @@
+import { Timestamp } from "@google-cloud/firestore";
 import { Hono } from "hono";
 import { loadDebugConfig } from "../../config.js";
 import { isDebugAuthenticated } from "../../services/auth.js";
+import { userRepository } from "../../services/user-repository.js";
 import {
 	handleCheckinWebhook,
 	validateWebhookPayload,
@@ -18,8 +20,7 @@ router.get("/health", async (c) => {
 		const connectedUsersCount = 0;
 		try {
 			// Simple query to test Firestore connection
-			const _testQuery =
-				await userRepository.getUserByDiscordId("health-check");
+			await userRepository.getUserByDiscordId("health-check");
 			firestoreStatus = "connected";
 
 			// Count connected users (users with foursquareUserId)
@@ -109,7 +110,7 @@ router.post("/checkin", async (c) => {
 			// Update last checkin timestamp
 			try {
 				await userRepository.updateUser(user.discordUserId, {
-					lastCheckinAt: new Date(),
+					lastCheckinAt: Timestamp.now(),
 				});
 			} catch (error) {
 				logger.warn("Failed to update lastCheckinAt", {

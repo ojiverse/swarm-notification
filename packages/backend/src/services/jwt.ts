@@ -2,7 +2,7 @@ import * as jose from "jose";
 import type { JWTPayload } from "../types/auth.js";
 import { logger } from "../utils/logger.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env["JWT_SECRET"];
 if (!JWT_SECRET) {
 	throw new Error("JWT_SECRET environment variable is required");
 }
@@ -41,16 +41,16 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
 
 		// Validate payload structure
 		if (
-			typeof payload.discordUserId !== "string" ||
-			typeof payload.discordUsername !== "string" ||
-			payload.serverMember !== true ||
-			typeof payload.iat !== "number" ||
-			typeof payload.exp !== "number"
+			typeof payload["discordUserId"] !== "string" ||
+			typeof payload["discordUsername"] !== "string" ||
+			payload["serverMember"] !== true ||
+			typeof payload["iat"] !== "number" ||
+			typeof payload["exp"] !== "number"
 		) {
 			logger.warn("Invalid JWT payload structure", {
-				hasDiscordUserId: typeof payload.discordUserId === "string",
-				hasDiscordUsername: typeof payload.discordUsername === "string",
-				serverMember: payload.serverMember,
+				hasDiscordUserId: typeof payload["discordUserId"] === "string",
+				hasDiscordUsername: typeof payload["discordUsername"] === "string",
+				serverMember: payload["serverMember"],
 			});
 			return null;
 		}
