@@ -74,3 +74,9 @@ variable "allow_unauthenticated" {
   type        = bool
   default     = true
 }
+
+variable "custom_domain" {
+  description = "Custom domain for the Cloud Run service (optional)"
+  type        = string
+  default     = null
+}

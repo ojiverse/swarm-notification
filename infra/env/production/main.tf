@@ -122,10 +122,11 @@ module "secret_manager" {
 module "cloud_run" {
   source = "../../modules/cloud_run"
   
-  project_id   = var.project_id
-  region       = var.region
-  service_name = local.service_name
-  image_url    = var.image_url
+  project_id    = var.project_id
+  region        = var.region
+  service_name  = local.service_name
+  image_url     = var.image_url
+  custom_domain = "api.swarm.ojiver.se"
   
   labels = local.common_labels
   
