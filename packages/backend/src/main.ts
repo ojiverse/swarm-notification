@@ -23,10 +23,8 @@ function createApp(): Hono {
 	app.route("/auth", authRoutes);
 	app.route("/webhook", webhookRoutes);
 
-	// Test routes (development only)
-	if (process.env["NODE_ENV"] === "development") {
-		app.route("/test", testFirestoreRoutes);
-	}
+	// Test routes
+	app.route("/test", testFirestoreRoutes);
 
 	// Error handler
 	app.onError((err, c) => {
