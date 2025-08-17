@@ -151,8 +151,13 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
 			redirect_uri: redirectUri,
 		});
 
+		// Log parameters without sensitive data
+		const sanitizedParams = new URLSearchParams(params);
+		sanitizedParams.set("code", "[REDACTED]");
+		sanitizedParams.set("client_secret", "[REDACTED]");
+
 		discordLogger.info("POST parameters", {
-			paramsString: params.toString(),
+			paramsString: sanitizedParams.toString(),
 			clientSecretLength: DISCORD_CLIENT_SECRET?.length,
 		});
 
@@ -184,12 +189,17 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
 		}
 
 		const responseText = await response.text();
+		const data = JSON.parse(responseText);
+
+		// Log response without sensitive tokens
 		discordLogger.info("Discord token response", {
 			responseLength: responseText.length,
-			fullResponse: responseText,
+			tokenType: data.token_type,
+			expiresIn: data.expires_in,
+			scope: data.scope,
+			hasAccessToken: !!data.access_token,
+			hasRefreshToken: !!data.refresh_token,
 		});
-
-		const data = JSON.parse(responseText);
 		if (!data.access_token) {
 			throw new Error("No access token in Discord response");
 		}

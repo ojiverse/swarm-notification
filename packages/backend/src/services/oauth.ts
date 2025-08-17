@@ -1,4 +1,7 @@
 import type { TokenResponse, UserInfo } from "../types/oauth.js";
+import { logger } from "../utils/logger.js";
+
+const oauthLogger = logger.getSubLogger({ name: "oauth.foursquare" });
 
 export const exchangeCodeForToken = async (
 	code: string,
@@ -12,6 +15,11 @@ export const exchangeCodeForToken = async (
 	}
 
 	const redirectUri = `${baseDomain}/auth/swarm/callback`;
+
+	oauthLogger.info("Starting Foursquare token exchange", {
+		redirectUri,
+		codeLength: code.length,
+	});
 
 	const response = await fetch("https://foursquare.com/oauth2/access_token", {
 		method: "POST",
@@ -28,13 +36,28 @@ export const exchangeCodeForToken = async (
 	});
 
 	if (!response.ok) {
+		const errorText = await response.text();
+		oauthLogger.error("Foursquare token exchange failed", {
+			status: response.status,
+			statusText: response.statusText,
+			error: errorText.substring(0, 500),
+		});
 		throw new Error(`Token exchange failed: ${response.statusText}`);
 	}
 
-	return response.json();
+	const tokenData = await response.json();
+
+	oauthLogger.info("Foursquare token exchange successful", {
+		tokenType: tokenData.token_type,
+		hasAccessToken: !!tokenData.access_token,
+	});
+
+	return tokenData;
 };
 
 export const getUserInfo = async (accessToken: string): Promise<UserInfo> => {
+	oauthLogger.info("Fetching Foursquare user info");
+
 	const response = await fetch(
 		"https://api.foursquare.com/v2/users/self?v=20231010",
 		{
@@ -45,13 +68,27 @@ export const getUserInfo = async (accessToken: string): Promise<UserInfo> => {
 	);
 
 	if (!response.ok) {
+		const errorText = await response.text();
+		oauthLogger.error("Foursquare user info fetch failed", {
+			status: response.status,
+			statusText: response.statusText,
+			error: errorText.substring(0, 500),
+		});
 		throw new Error(`User info fetch failed: ${response.statusText}`);
 	}
 
 	const data = await response.json();
-	return {
+	const userInfo = {
 		id: data.response.user.id,
 		firstName: data.response.user.firstName,
 		lastName: data.response.user.lastName,
 	};
+
+	oauthLogger.info("Foursquare user info fetch successful", {
+		userId: userInfo.id,
+		firstName: userInfo.firstName,
+		hasLastName: !!userInfo.lastName,
+	});
+
+	return userInfo;
 };
