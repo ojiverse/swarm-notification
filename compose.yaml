@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./packages/backend/Dockerfile
+    ports:
+      - "3000:8080"
+    # environment:
+    #   # OAuth Configuration
+    #   FOURSQUARE_CLIENT_ID: ${FOURSQUARE_CLIENT_ID}
+    #   FOURSQUARE_CLIENT_SECRET: ${FOURSQUARE_CLIENT_SECRET}
+    #   FOURSQUARE_REDIRECT_URI: "http://localhost:3000/auth/swarm/callback"
+      
+    #   # Push API Configuration
+    #   FOURSQUARE_PUSH_SECRET: ${FOURSQUARE_PUSH_SECRET}
+    #   DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      
+    #   # Debug User Configuration
+    #   DEBUG_FOURSQUARE_USER_ID: ${DEBUG_FOURSQUARE_USER_ID}
+    #   DEBUG_ACCESS_TOKEN: ${DEBUG_ACCESS_TOKEN}
+      
+    #   # Server Configuration
+    #   PORT: 8080
+    #   NODE_ENV: development
+    env_file:
+      - ./packages/backend/.env.local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/webhook/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

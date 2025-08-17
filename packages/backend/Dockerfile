@@ -9,7 +9,8 @@ COPY packages/backend/package.json ./packages/backend/
 
 # Install tini and pnpm, then dependencies
 RUN apk add --no-cache tini && \
-    npm install -g pnpm && pnpm install --frozen-lockfile
+    npm install -g pnpm && \
+    pnpm install --frozen-lockfile
 
 # Copy source code
 COPY packages/backend/ ./packages/backend/
@@ -29,14 +30,10 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Copy built application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/dist ./dist
-
-# Copy production dependencies from builder
+# Copy monorepo structure to maintain dependency resolution
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/dist ./packages/backend/dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-
-# Copy package.json for any runtime needs
-COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/package.json ./package.json
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/node_modules ./packages/backend/node_modules
 
 # Switch to non-root user
 USER nodejs
@@ -70,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # Start the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "./packages/backend/dist/main.js"]
