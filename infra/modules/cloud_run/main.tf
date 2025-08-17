@@ -73,20 +73,21 @@ resource "google_cloud_run_service_iam_member" "public_access" {
 }
 
 # Domain mapping for custom domain (optional)
-resource "google_cloud_run_domain_mapping" "main" {
-  count = var.custom_domain != null ? 1 : 0
-  
-  location = var.region
-  name     = var.custom_domain
-  
-  metadata {
-    namespace = var.project_id
-  }
-  
-  spec {
-    route_name = google_cloud_run_v2_service.main.name
-  }
-  
-  # Ensure service is created first
-  depends_on = [google_cloud_run_v2_service.main]
-}
+# Temporarily disabled - will be created manually and imported later
+# resource "google_cloud_run_domain_mapping" "main" {
+#   count = var.custom_domain != null ? 1 : 0
+#   
+#   location = var.region
+#   name     = var.custom_domain
+#   
+#   metadata {
+#     namespace = var.project_id
+#   }
+#   
+#   spec {
+#     route_name = google_cloud_run_v2_service.main.name
+#   }
+#   
+#   # Ensure service is created first
+#   depends_on = [google_cloud_run_v2_service.main]
+# }
