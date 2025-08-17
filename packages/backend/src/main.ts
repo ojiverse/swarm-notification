@@ -6,6 +6,7 @@ import { tslogMiddleware } from "./middleware/logger.js";
 import authRoutes from "./routes/auth/index.js";
 import mainRoutes from "./routes/index.js";
 import testFirestoreRoutes from "./routes/test/firestore.js";
+import usersRoutes from "./routes/users/me.js";
 import webhookRoutes from "./routes/webhook/index.js";
 import { initializeDebugAuth } from "./services/auth.js";
 import { logger } from "./utils/logger.js";
@@ -21,6 +22,7 @@ function createApp(): Hono {
 	// Routes
 	app.route("/", mainRoutes);
 	app.route("/auth", authRoutes);
+	app.route("/users", usersRoutes);
 	app.route("/webhook", webhookRoutes);
 
 	// Test routes

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Zod Schemas
+// Zod Schemas for Foursquare checkin data
 const WebhookPayloadSchema = z.object({
 	user: z.object({
 		id: z.string(),
@@ -52,50 +52,11 @@ const ParsedCheckinSchema = z.object({
 		.optional(),
 });
 
-const ConfigSchema = z.object({
-	port: z.number(),
-	foursquarePushSecret: z.string(),
-	discordWebhookUrl: z.string().url(),
-});
-
-const DebugConfigSchema = z.object({
-	port: z.number(),
-	foursquarePushSecret: z.string(),
-	discordWebhookUrl: z.string().url(),
-	debugFoursquareUserId: z.string().min(1),
-	debugAccessToken: z.string().min(1),
-});
-
 // Type exports
 export type WebhookPayload = z.infer<typeof WebhookPayloadSchema>;
 export type ParsedCheckin = z.infer<typeof ParsedCheckinSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type Venue = z.infer<typeof VenueSchema>;
-export type Config = z.infer<typeof ConfigSchema>;
-export type DebugConfig = z.infer<typeof DebugConfigSchema>;
 
 // Schema exports for validation
-export {
-	WebhookPayloadSchema,
-	ParsedCheckinSchema,
-	ConfigSchema,
-	DebugConfigSchema,
-};
-
-// Discord types (no validation needed for outgoing webhooks)
-export type DiscordWebhookPayload = {
-	readonly content?: string;
-	readonly embeds?: ReadonlyArray<DiscordEmbed>;
-};
-
-export type DiscordEmbed = {
-	readonly title?: string;
-	readonly description?: string;
-	readonly color?: number;
-	readonly timestamp?: string;
-	readonly fields?: ReadonlyArray<{
-		readonly name: string;
-		readonly value: string;
-		readonly inline?: boolean;
-	}>;
-};
+export { WebhookPayloadSchema, ParsedCheckinSchema, UserSchema, VenueSchema };

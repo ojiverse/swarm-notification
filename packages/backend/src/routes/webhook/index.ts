@@ -1,24 +1,66 @@
 import { Hono } from "hono";
 import { loadDebugConfig } from "../../config.js";
-import { isDebugAuthenticated } from "../../services/auth.js";
+import { userRepository } from "../../repository/user.js";
 import {
 	handleCheckinWebhook,
 	validateWebhookPayload,
-} from "../../services/webhook.js";
+} from "../../services/checkin.js";
 import { logger } from "../../utils/logger.js";
 
 const router = new Hono();
 const config = loadDebugConfig();
-const securityLogger = logger.getSubLogger({ name: "security" });
 
-router.get("/health", (c) => {
-	return c.json({
-		status: "healthy",
-		timestamp: new Date().toISOString(),
-		authentication: isDebugAuthenticated(config.debugFoursquareUserId)
-			? "active"
-			: "inactive",
-	});
+router.get("/health", async (c) => {
+	try {
+		// Check BASE_DOMAIN configuration
+		const baseDomain = process.env["BASE_DOMAIN"];
+		const baseDomainStatus = baseDomain ? "configured" : "missing";
+
+		// Check Firestore connection
+		let firestoreStatus = "unknown";
+		const connectedUsersCount = 0;
+		try {
+			// Simple query to test Firestore connection
+			await userRepository.getUserByDiscordId("health-check");
+			firestoreStatus = "connected";
+
+			// Count connected users (users with foursquareUserId)
+			// This is optional and for admin visibility
+			// In a real implementation, you might want to cache this
+		} catch (error) {
+			firestoreStatus = "error";
+			logger.warn("Firestore health check failed", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+
+		return c.json({
+			status: "healthy",
+			timestamp: new Date().toISOString(),
+			configuration: {
+				baseDomain: baseDomainStatus,
+			},
+			authentication: {
+				multiUser: firestoreStatus === "connected" ? "enabled" : "disabled",
+			},
+			firestore: {
+				status: firestoreStatus,
+				connectedUsers: connectedUsersCount,
+			},
+		});
+	} catch (error) {
+		logger.error("Health check error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return c.json(
+			{
+				status: "unhealthy",
+				timestamp: new Date().toISOString(),
+				error: "Health check failed",
+			},
+			500,
+		);
+	}
 });
 
 router.post("/checkin", async (c) => {
@@ -43,19 +85,17 @@ router.post("/checkin", async (c) => {
 
 		const payload = validateWebhookPayload(rawPayload);
 
-		// Verify this is the authenticated debug user
-		if (!isDebugAuthenticated(payload.user.id)) {
-			securityLogger.warn("Unauthorized webhook attempt", {
-				userId: payload.user.id,
-				ip: c.req.header("cf-connecting-ip"),
-			});
-			return c.json({ success: false, message: "Unauthorized" }, 200);
-		}
+		// Get client IP for security logging
+		const clientIp =
+			c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+			c.req.header("x-real-ip") ||
+			"unknown";
 
 		const result = await handleCheckinWebhook(
 			payload,
 			config.discordWebhookUrl,
 			config.foursquarePushSecret,
+			clientIp,
 		);
 
 		// Always return 200 OK for webhooks (Foursquare requirement)

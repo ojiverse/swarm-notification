@@ -131,7 +131,7 @@ module "cloud_run" {
   
   environment_variables = {
     NODE_ENV                = "production"
-    FOURSQUARE_REDIRECT_URI = "https://${local.service_name}-${random_id.suffix.hex}-uc.a.run.app/auth/swarm/callback"
+    BASE_DOMAIN             = module.cloud_run.service_url
     DISCORD_TARGET_SERVER_ID = var.discord_target_server_id
   }
   

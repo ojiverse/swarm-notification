@@ -3,7 +3,7 @@ import {
 	ConfigSchema,
 	type DebugConfig,
 	DebugConfigSchema,
-} from "./types.js";
+} from "./types/config.js";
 
 function loadConfig(): Config {
 	return ConfigSchema.parse({

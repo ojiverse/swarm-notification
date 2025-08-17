@@ -5,27 +5,10 @@ services:
       dockerfile: ./packages/backend/Dockerfile
     ports:
       - "3000:8080"
-    # environment:
-    #   # OAuth Configuration
-    #   FOURSQUARE_CLIENT_ID: ${FOURSQUARE_CLIENT_ID}
-    #   FOURSQUARE_CLIENT_SECRET: ${FOURSQUARE_CLIENT_SECRET}
-    #   FOURSQUARE_REDIRECT_URI: "http://localhost:3000/auth/swarm/callback"
-      
-    #   # Push API Configuration
-    #   FOURSQUARE_PUSH_SECRET: ${FOURSQUARE_PUSH_SECRET}
-    #   DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
-      
-    #   # Debug User Configuration
-    #   DEBUG_FOURSQUARE_USER_ID: ${DEBUG_FOURSQUARE_USER_ID}
-    #   DEBUG_ACCESS_TOKEN: ${DEBUG_ACCESS_TOKEN}
-      
-    #   # Server Configuration
-    #   PORT: 8080
-    #   NODE_ENV: development
     env_file:
       - ./packages/backend/.env.local
     depends_on:
-      - firestore-emulator
+      - firestore
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/webhook/health"]
@@ -34,11 +17,17 @@ services:
       retries: 3
       start_period: 5s
 
-  firestore-emulator:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+  firestore:
+    build:
+      context: ./infra/emulator/firebase
+      dockerfile: Dockerfile
     ports:
-      - "8081:8080"
-    environment:
-      - FIRESTORE_PROJECT_ID=swarm-notifier-local
+      - "8081:8081"  # Firestore emulator
+      - "4000:4000"  # Firebase UI
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

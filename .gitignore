@@ -156,3 +156,9 @@ infra/**/*.tfvars
 !infra/**/*.tfvars.example
 
 CLAUDE.*.md
+
+# Firebase Emulator
+firebase-debug.log
+ui-debug.log
+infra/emulator/firebase/firestore-debug.log
+infra/emulator/firebase/.firebase/

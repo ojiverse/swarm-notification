@@ -1,12 +1,16 @@
+import { timingSafeEqual } from "node:crypto";
+import { Timestamp } from "@google-cloud/firestore";
+import { userRepository } from "../repository/user.js";
 import {
 	type ParsedCheckin,
 	ParsedCheckinSchema,
 	type WebhookPayload,
 	WebhookPayloadSchema,
-} from "../types.js";
+} from "../types/checkin.js";
 import { logger } from "../utils/logger.js";
 
 const webhookLogger = logger.getSubLogger({ name: "webhook" });
+const securityLogger = logger.getSubLogger({ name: "security" });
 
 import { sendCheckinToDiscord } from "./discord.js";
 
@@ -14,14 +18,57 @@ async function handleCheckinWebhook(
 	payload: WebhookPayload,
 	discordWebhookUrl: string,
 	pushSecret: string,
+	clientIp?: string,
 ): Promise<{ readonly success: boolean; readonly message: string }> {
 	try {
-		// Verify secret
-		if (payload.secret !== pushSecret) {
+		// Verify secret using timing-safe comparison
+		const expectedSecret = Buffer.from(pushSecret, "utf8");
+		const providedSecret = Buffer.from(payload.secret, "utf8");
+
+		if (
+			expectedSecret.length !== providedSecret.length ||
+			!timingSafeEqual(expectedSecret, providedSecret)
+		) {
+			securityLogger.warn("Webhook secret mismatch", {
+				foursquareUserId: payload.user.id,
+				ip: clientIp,
+				timestamp: new Date().toISOString(),
+			});
 			return {
 				success: false,
-				message: "Invalid push secret",
+				message: "Invalid request",
 			};
+		}
+
+		// Check if user exists in Firestore (multi-user support)
+		const user = await userRepository.getUserByFoursquareId(payload.user.id);
+		if (!user) {
+			securityLogger.warn("Webhook from unknown user", {
+				foursquareUserId: payload.user.id,
+				ip: clientIp,
+			});
+			return {
+				success: false,
+				message: "User not found",
+			};
+		}
+
+		securityLogger.info("Webhook processed for registered user", {
+			foursquareUserId: payload.user.id,
+			discordUserId: user.discordUserId,
+			discordUsername: user.discordUsername,
+		});
+
+		// Update last checkin timestamp
+		try {
+			await userRepository.updateUser(user.discordUserId, {
+				lastCheckinAt: Timestamp.now(),
+			});
+		} catch (error) {
+			webhookLogger.warn("Failed to update lastCheckinAt", {
+				error: error instanceof Error ? error.message : "Unknown error",
+				foursquareUserId: payload.user.id,
+			});
 		}
 
 		// Parse checkin data

@@ -7,9 +7,14 @@
 		"packages/*"
 	],
 	"packageManager": "pnpm@10.14.0",
+	"engines": {
+		"node": ">=22.0.0",
+		"pnpm": ">=10.0.0"
+	},
 	"scripts": {
 		"backend": "pnpm --filter backend",
-		"dev:emulator": "docker compose up firestore-emulator",
+		"dev:emulator": "docker compose up firestore",
+		"dev:emulator:build": "docker compose build firestore",
 		"dev:full": "docker compose up"
 	},
 	"lint-staged": {
@@ -29,6 +34,7 @@
 		"@types/node": "24.3.0",
 		"@typescript/native-preview": "7.0.0-dev.20250815.1",
 		"dotenv-cli": "10.0.0",
+		"firebase-tools": "14.12.1",
 		"lint-staged": "16.1.5",
 		"secretlint": "11.0.2",
 		"simple-git-hooks": "2.13.1",

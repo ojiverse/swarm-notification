@@ -1,12 +1,32 @@
+import type { ParsedCheckin, Venue } from "../types/checkin.js";
 import type {
 	DiscordEmbed,
+	DiscordGuild,
+	DiscordUser,
 	DiscordWebhookPayload,
-	ParsedCheckin,
-	Venue,
-} from "../types.js";
+} from "../types/discord.js";
 import { logger } from "../utils/logger.js";
 
 const discordLogger = logger.getSubLogger({ name: "discord" });
+
+// Global environment variable validation (fail fast on module import)
+const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
+const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
+const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
+const BASE_DOMAIN = process.env["BASE_DOMAIN"];
+
+if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
+	throw new Error(
+		"Discord OAuth environment variables (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_TARGET_SERVER_ID) are required",
+	);
+}
+
+if (!BASE_DOMAIN) {
+	throw new Error("BASE_DOMAIN environment variable is required");
+}
+
+const DISCORD_API_BASE = "https://discord.com/api/v10" as const;
+const DISCORD_OAUTH_BASE = `${DISCORD_API_BASE}/oauth2`;
 
 async function sendCheckinToDiscord(
 	checkin: ParsedCheckin,
@@ -110,6 +130,205 @@ async function postToDiscordWebhook(
 		},
 		body: JSON.stringify(payload),
 	});
+}
+
+export async function exchangeCodeForToken(code: string): Promise<string> {
+	try {
+		const tokenUrl = `${DISCORD_OAUTH_BASE}/token`;
+		const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
+
+		discordLogger.info("Starting Discord token exchange", {
+			tokenUrl,
+			redirectUri,
+			clientId: DISCORD_CLIENT_ID,
+			codeLength: code.length,
+		});
+
+		const params = new URLSearchParams({
+			client_id: DISCORD_CLIENT_ID!,
+			client_secret: DISCORD_CLIENT_SECRET!,
+			grant_type: "authorization_code",
+			code,
+			redirect_uri: redirectUri,
+		});
+
+		// Log parameters without sensitive data
+		const sanitizedParams = new URLSearchParams(params);
+		sanitizedParams.set("code", "[REDACTED]");
+		sanitizedParams.set("client_secret", "[REDACTED]");
+
+		discordLogger.info("POST parameters", {
+			paramsString: sanitizedParams.toString(),
+			clientSecretLength: DISCORD_CLIENT_SECRET?.length,
+		});
+
+		const response = await fetch(tokenUrl, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: params,
+		});
+
+		discordLogger.info("Discord API response received", {
+			status: response.status,
+			statusText: response.statusText,
+			headers: Object.fromEntries(response.headers.entries()),
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			discordLogger.error("Discord token exchange failed", {
+				status: response.status,
+				statusText: response.statusText,
+				url: tokenUrl,
+				redirectUri,
+				clientId: DISCORD_CLIENT_ID,
+				error: errorText.substring(0, 500), // Truncate long HTML responses
+			});
+			throw new Error("Failed to exchange code for token");
+		}
+
+		const responseText = await response.text();
+		const data = JSON.parse(responseText);
+
+		// Log response without sensitive tokens
+		discordLogger.info("Discord token response", {
+			responseLength: responseText.length,
+			tokenType: data.token_type,
+			expiresIn: data.expires_in,
+			scope: data.scope,
+			hasAccessToken: !!data.access_token,
+			hasRefreshToken: !!data.refresh_token,
+		});
+		if (!data.access_token) {
+			throw new Error("No access token in Discord response");
+		}
+
+		discordLogger.info("Discord token exchange successful");
+		return data.access_token;
+	} catch (error) {
+		discordLogger.error("Discord token exchange error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		throw error;
+	}
+}
+
+export async function getDiscordUser(
+	accessToken: string,
+): Promise<DiscordUser> {
+	try {
+		const response = await fetch(`${DISCORD_API_BASE}/users/@me`, {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			discordLogger.error("Discord user fetch failed", {
+				status: response.status,
+				error: errorText,
+			});
+			throw new Error("Failed to fetch Discord user");
+		}
+
+		const user = await response.json();
+
+		// Validate response structure
+		if (!user.id || !user.username) {
+			throw new Error("Invalid Discord user response");
+		}
+
+		discordLogger.info("Discord user fetch successful", {
+			discordUserId: user.id,
+			discordUsername: user.username,
+		});
+
+		return {
+			id: user.id,
+			username: user.username,
+			global_name: user.global_name,
+		};
+	} catch (error) {
+		discordLogger.error("Discord user fetch error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		throw error;
+	}
+}
+
+export async function getUserGuilds(
+	accessToken: string,
+): Promise<DiscordGuild[]> {
+	try {
+		const response = await fetch(`${DISCORD_API_BASE}/users/@me/guilds`, {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			discordLogger.error("Discord guilds fetch failed", {
+				status: response.status,
+				error: errorText,
+			});
+			throw new Error("Failed to fetch Discord guilds");
+		}
+
+		const guilds = await response.json();
+
+		// Validate response is array
+		if (!Array.isArray(guilds)) {
+			throw new Error("Invalid Discord guilds response");
+		}
+
+		discordLogger.info("Discord guilds fetch successful", {
+			guildCount: guilds.length,
+		});
+
+		return guilds.map((guild) => ({
+			id: guild.id,
+			name: guild.name,
+		}));
+	} catch (error) {
+		discordLogger.error("Discord guilds fetch error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		throw error;
+	}
+}
+
+export function isServerMember(
+	guilds: DiscordGuild[],
+	targetServerId: string,
+): boolean {
+	// Array.some() is optimal here - early exit when found (average O(n/2))
+	// Set conversion would always be O(n) + extra memory overhead
+	const isMember = guilds.some((guild) => guild.id === targetServerId);
+
+	discordLogger.info("Server membership check", {
+		targetServerId,
+		isMember,
+		guildCount: guilds.length,
+	});
+	return isMember;
+}
+
+export function getDiscordOAuthURL(state: string): string {
+	const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
+
+	const params = new URLSearchParams({
+		client_id: DISCORD_CLIENT_ID!,
+		redirect_uri: redirectUri,
+		response_type: "code",
+		scope: "identify guilds",
+		state,
+	});
+
+	return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
 export { sendCheckinToDiscord, createDiscordEmbed, formatLocationString };
