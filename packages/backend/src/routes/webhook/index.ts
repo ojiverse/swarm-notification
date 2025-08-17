@@ -1,7 +1,5 @@
-import { Timestamp } from "@google-cloud/firestore";
 import { Hono } from "hono";
 import { loadDebugConfig } from "../../config.js";
-import { isDebugAuthenticated } from "../../services/auth.js";
 import { userRepository } from "../../services/user-repository.js";
 import {
 	handleCheckinWebhook,
@@ -11,7 +9,6 @@ import { logger } from "../../utils/logger.js";
 
 const router = new Hono();
 const config = loadDebugConfig();
-const securityLogger = logger.getSubLogger({ name: "security" });
 
 router.get("/health", async (c) => {
 	try {
@@ -44,9 +41,6 @@ router.get("/health", async (c) => {
 				baseDomain: baseDomainStatus,
 			},
 			authentication: {
-				debugMode: isDebugAuthenticated(config.debugFoursquareUserId)
-					? "active"
-					: "inactive",
 				multiUser: firestoreStatus === "connected" ? "enabled" : "disabled",
 			},
 			firestore: {
@@ -91,46 +85,11 @@ router.post("/checkin", async (c) => {
 
 		const payload = validateWebhookPayload(rawPayload);
 
-		// Check if user exists in Firestore (multi-user support)
-		const user = await userRepository.getUserByFoursquareId(payload.user.id);
-		if (!user) {
-			// Fallback to debug mode for backward compatibility
-			if (!isDebugAuthenticated(payload.user.id)) {
-				securityLogger.warn("Webhook from unknown user", {
-					foursquareUserId: payload.user.id,
-					ip: c.req.header("cf-connecting-ip"),
-				});
-				return c.json({ success: false, message: "User not found" }, 200);
-			}
-			// Debug mode - proceed with existing logic
-			securityLogger.info("Webhook processed in debug mode", {
-				foursquareUserId: payload.user.id,
-			});
-		} else {
-			// Multi-user mode - user exists in Firestore
-			securityLogger.info("Webhook processed for registered user", {
-				foursquareUserId: payload.user.id,
-				discordUserId: user.discordUserId,
-				discordUsername: user.discordUsername,
-			});
-
-			// Update last checkin timestamp
-			try {
-				await userRepository.updateUser(user.discordUserId, {
-					lastCheckinAt: Timestamp.now(),
-				});
-			} catch (error) {
-				logger.warn("Failed to update lastCheckinAt", {
-					error: error instanceof Error ? error.message : "Unknown error",
-					foursquareUserId: payload.user.id,
-				});
-			}
-		}
-
 		const result = await handleCheckinWebhook(
 			payload,
 			config.discordWebhookUrl,
 			config.foursquarePushSecret,
+			c.req.header("cf-connecting-ip"),
 		);
 
 		// Always return 200 OK for webhooks (Foursquare requirement)
