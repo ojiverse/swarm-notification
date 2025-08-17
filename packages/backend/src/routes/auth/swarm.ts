@@ -131,11 +131,16 @@ swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
 			error: error instanceof Error ? error.message : "Unknown error",
 			discordUserId: c.get("user")?.discordUserId,
 		});
+		const errorMessage =
+			process.env["NODE_ENV"] === "production"
+				? "Authentication failed. Please try again."
+				: `Failed to exchange code for token: ${(error as Error).message}`;
+
 		return c.html(`
       <html>
         <body>
           <h1>Token Exchange Error</h1>
-          <p>Failed to exchange code for token: ${(error as Error).message}</p>
+          <p>${errorMessage}</p>
           <a href="/auth/swarm/login">Try Again</a>
         </body>
       </html>

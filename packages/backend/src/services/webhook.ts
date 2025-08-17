@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { Timestamp } from "@google-cloud/firestore";
 import {
 	type ParsedCheckin,
@@ -20,11 +21,22 @@ async function handleCheckinWebhook(
 	clientIp?: string,
 ): Promise<{ readonly success: boolean; readonly message: string }> {
 	try {
-		// Verify secret
-		if (payload.secret !== pushSecret) {
+		// Verify secret using timing-safe comparison
+		const expectedSecret = Buffer.from(pushSecret, "utf8");
+		const providedSecret = Buffer.from(payload.secret, "utf8");
+
+		if (
+			expectedSecret.length !== providedSecret.length ||
+			!timingSafeEqual(expectedSecret, providedSecret)
+		) {
+			securityLogger.warn("Webhook secret mismatch", {
+				foursquareUserId: payload.user.id,
+				ip: clientIp,
+				timestamp: new Date().toISOString(),
+			});
 			return {
 				success: false,
-				message: "Invalid push secret",
+				message: "Invalid request",
 			};
 		}
 
