@@ -38,18 +38,33 @@ export function jwtAuth(): MiddlewareHandler<{
 	Variables: AuthenticatedContext;
 }> {
 	return async (c, next: Next) => {
-		const token = getCookie(c, JWT_COOKIE_NAME);
+		// Try Authorization header first (Bearer token), then cookie
+		let token = null;
+		const authHeader = c.req.header("Authorization");
+
+		if (authHeader?.startsWith("Bearer ")) {
+			token = authHeader.slice(7); // Remove "Bearer " prefix
+			logger.debug("JWT token found in Authorization header");
+		} else {
+			token = getCookie(c, JWT_COOKIE_NAME);
+			if (token) {
+				logger.debug("JWT token found in cookie");
+			}
+		}
 
 		if (!token) {
-			logger.debug("No JWT token found in cookie");
-			return c.json({ error: "Authentication required" }, 401);
+			logger.debug("No JWT token found in Authorization header or cookie");
+			return c.json({ error: "Authentication required" }, 403);
 		}
 
 		const payload = await verifyJWT(token);
 		if (!payload) {
 			logger.debug("Invalid JWT token");
-			clearJWTCookie(c);
-			return c.json({ error: "Invalid or expired token" }, 401);
+			// Only clear cookie if token came from cookie
+			if (!authHeader) {
+				clearJWTCookie(c);
+			}
+			return c.json({ error: "Invalid or expired token" }, 403);
 		}
 
 		// Set user context for authenticated requests
