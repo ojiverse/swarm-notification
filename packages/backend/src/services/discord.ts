@@ -129,12 +129,19 @@ if (!BASE_DOMAIN) {
 }
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-const DISCORD_OAUTH_BASE = "https://discord.com/oauth2";
+const DISCORD_OAUTH_BASE = "https://discord.com/api/v10/oauth2";
 
 export async function exchangeCodeForToken(code: string): Promise<string> {
 	try {
 		const tokenUrl = `${DISCORD_OAUTH_BASE}/token`;
 		const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
+
+		discordLogger.info("Starting Discord token exchange", {
+			tokenUrl,
+			redirectUri,
+			clientId: DISCORD_CLIENT_ID,
+			codeLength: code.length,
+		});
 
 		const params = new URLSearchParams({
 			client_id: DISCORD_CLIENT_ID!,
@@ -142,6 +149,11 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
 			grant_type: "authorization_code",
 			code,
 			redirect_uri: redirectUri,
+		});
+
+		discordLogger.info("POST parameters", {
+			paramsString: params.toString(),
+			clientSecretLength: DISCORD_CLIENT_SECRET?.length,
 		});
 
 		const response = await fetch(tokenUrl, {
@@ -152,16 +164,32 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
 			body: params,
 		});
 
+		discordLogger.info("Discord API response received", {
+			status: response.status,
+			statusText: response.statusText,
+			headers: Object.fromEntries(response.headers.entries()),
+		});
+
 		if (!response.ok) {
 			const errorText = await response.text();
 			discordLogger.error("Discord token exchange failed", {
 				status: response.status,
-				error: errorText,
+				statusText: response.statusText,
+				url: tokenUrl,
+				redirectUri,
+				clientId: DISCORD_CLIENT_ID,
+				error: errorText.substring(0, 500), // Truncate long HTML responses
 			});
 			throw new Error("Failed to exchange code for token");
 		}
 
-		const data = await response.json();
+		const responseText = await response.text();
+		discordLogger.info("Discord token response", {
+			responseLength: responseText.length,
+			fullResponse: responseText,
+		});
+
+		const data = JSON.parse(responseText);
 		if (!data.access_token) {
 			throw new Error("No access token in Discord response");
 		}
@@ -288,7 +316,7 @@ export function getDiscordOAuthURL(): string {
 		scope: "identify guilds",
 	});
 
-	return `${DISCORD_OAUTH_BASE}/authorize?${params.toString()}`;
+	return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
 export { sendCheckinToDiscord, createDiscordEmbed, formatLocationString };

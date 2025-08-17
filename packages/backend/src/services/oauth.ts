@@ -5,11 +5,13 @@ export const exchangeCodeForToken = async (
 ): Promise<TokenResponse> => {
 	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
 	const clientSecret = process.env["FOURSQUARE_CLIENT_SECRET"];
-	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
+	const baseDomain = process.env["BASE_DOMAIN"];
 
-	if (!clientId || !clientSecret || !redirectUri) {
+	if (!clientId || !clientSecret || !baseDomain) {
 		throw new Error("Missing required OAuth environment variables");
 	}
+
+	const redirectUri = `${baseDomain}/auth/swarm/callback`;
 
 	const response = await fetch("https://foursquare.com/oauth2/access_token", {
 		method: "POST",
