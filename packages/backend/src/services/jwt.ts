@@ -37,9 +37,19 @@ export async function createJWT(
 
 export async function verifyJWT(token: string): Promise<JWTPayload | null> {
 	try {
-		const { payload } = await jose.jwtVerify(token, secret);
+		// jose.jwtVerify performs comprehensive verification:
+		// 1. Signature verification using the secret
+		// 2. Expiration time validation (exp claim)
+		// 3. Not before time validation (nbf claim, if present)
+		// 4. Issued at time validation (iat claim)
+		// 5. Algorithm verification (prevents algorithm confusion attacks)
+		const { payload } = await jose.jwtVerify(token, secret, {
+			// Additional security options
+			clockTolerance: "30s", // Allow 30 seconds clock skew
+			algorithms: ["HS256"], // Only allow HMAC with SHA-256
+		});
 
-		// Validate payload structure
+		// Validate application-specific payload structure
 		if (
 			typeof payload["discordUserId"] !== "string" ||
 			typeof payload["discordUsername"] !== "string" ||
@@ -55,12 +65,19 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
 			return null;
 		}
 
+		logger.debug("JWT verification successful", {
+			discordUserId: payload["discordUserId"],
+			expiresAt: new Date((payload["exp"] as number) * 1000).toISOString(),
+		});
+
 		return payload as JWTPayload;
 	} catch (error) {
 		if (error instanceof jose.errors.JWTExpired) {
 			logger.debug("JWT token expired");
 		} else if (error instanceof jose.errors.JWTInvalid) {
-			logger.debug("JWT token invalid");
+			logger.debug("JWT token invalid (signature or format)");
+		} else if (error instanceof jose.errors.JWTClaimValidationFailed) {
+			logger.debug("JWT claim validation failed");
 		} else {
 			logger.error("JWT verification failed", {
 				error: error instanceof Error ? error.message : "Unknown error",
