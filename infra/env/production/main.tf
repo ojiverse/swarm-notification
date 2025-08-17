@@ -132,7 +132,7 @@ module "cloud_run" {
   
   environment_variables = {
     NODE_ENV                = "production"
-    BASE_DOMAIN             = "https://api.swarm.ojiver.se"
+    BASE_DOMAIN             = "https://swarm-api-872751579217.us-central1.run.app"
     DISCORD_TARGET_SERVER_ID = var.discord_target_server_id
   }
   
