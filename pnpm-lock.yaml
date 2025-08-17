@@ -27,7 +27,7 @@ importers:
         specifier: 10.0.0
         version: 10.0.0
       firebase-tools:
-        specifier: ^14.12.1
+        specifier: 14.12.1
         version: 14.12.1(@types/node@24.3.0)(encoding@0.1.13)
       lint-staged:
         specifier: 16.1.5
@@ -4202,7 +4202,7 @@ snapshots:
 
   compressible@2.0.18:
     dependencies:
-      mime-db: 1.52.0
+      mime-db: 1.54.0
 
   compression@1.8.1:
     dependencies:
