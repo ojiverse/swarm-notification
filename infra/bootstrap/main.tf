@@ -104,7 +104,6 @@ resource "google_service_account" "terraform" {
 # Grant necessary permissions to Terraform service account
 resource "google_project_iam_member" "terraform_permissions" {
   for_each = toset([
-    "roles/editor",                    # Broad permissions for resource management
     "roles/storage.admin",             # Storage bucket management
     "roles/secretmanager.admin",       # Secret Manager operations
     "roles/run.admin",                 # Cloud Run operations
@@ -113,6 +112,9 @@ resource "google_project_iam_member" "terraform_permissions" {
     "roles/monitoring.admin",          # Monitoring operations
     "roles/iam.serviceAccountAdmin",   # Service account management
     "roles/iam.serviceAccountUser",    # Service account usage
+    "roles/datastore.owner",           # Firestore database management
+    "roles/serviceusage.serviceUsageAdmin", # API enablement
+    "roles/resourcemanager.projectIamAdmin", # Project IAM management
   ])
   
   project = var.project_id
