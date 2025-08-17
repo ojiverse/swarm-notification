@@ -207,9 +207,10 @@ module "workload_identity" {
     "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/datastore.user",
-    # More specific IAM permissions for Terraform operations
+    # IAM permissions for Terraform operations
     "roles/iam.workloadIdentityPoolAdmin",    # Required for Workload Identity Pool access
     "roles/resourcemanager.projectIamAdmin",  # TEMPORARY: for project IAM management (TODO: replace with custom role)
+    "roles/iam.serviceAccountAdmin",          # Required for service account IAM policy management (Workload Identity)
   ]
 }
 
