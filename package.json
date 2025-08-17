@@ -1,16 +1,14 @@
 {
-	"name": "swarm",
+	"name": "swarm-notification",
 	"version": "1.0.0",
-	"description": "",
-	"type": "module",
-	"main": "./dist/main.js",
+	"description": "Swarm API Real-time Integration Monorepo",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"packageManager": "pnpm@10.14.0",
 	"scripts": {
-		"prepare": "simple-git-hooks",
-		"dev": "dotenv -e .env.local -- tsx ./src/main.ts",
-		"build": "tsgo",
-		"format": "biome check --write --unsafe .",
-		"check:format": "biome check .",
-		"check:types": "tsgo --noEmit ."
+		"backend": "pnpm --filter backend"
 	},
 	"lint-staged": {
 		"*": "secretlint",
@@ -22,7 +20,6 @@
 	"keywords": [],
 	"author": "OldBigBuddha<contact@oldbigbuddha.net>",
 	"license": "MIT",
-	"packageManager": "pnpm@10.14.0",
 	"devDependencies": {
 		"@biomejs/biome": "2.2.0",
 		"@secretlint/secretlint-rule-preset-recommend": "11.0.2",
@@ -35,11 +32,5 @@
 		"simple-git-hooks": "2.13.1",
 		"tsx": "4.20.4",
 		"typescript": "5.9.2"
-	},
-	"dependencies": {
-		"@hono/node-server": "1.18.2",
-		"hono": "4.9.2",
-		"tslog": "4.9.3",
-		"zod": "4.0.17"
 	}
 }

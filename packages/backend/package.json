@@ -1,0 +1,24 @@
+{
+	"name": "backend",
+	"version": "1.0.0",
+	"description": "Swarm API Backend Service",
+	"type": "module",
+	"main": "./dist/main.js",
+	"scripts": {
+		"prepare": "simple-git-hooks",
+		"dev": "dotenv -e .env.local -- tsx ./src/main.ts",
+		"build": "tsgo",
+		"format": "biome check --write --unsafe .",
+		"check:format": "biome check .",
+		"check:types": "tsgo --noEmit ."
+	},
+	"keywords": [],
+	"author": "OldBigBuddha<contact@oldbigbuddha.net>",
+	"license": "MIT",
+	"dependencies": {
+		"@hono/node-server": "1.18.2",
+		"hono": "4.9.2",
+		"tslog": "4.9.3",
+		"zod": "4.0.17"
+	}
+}
