@@ -11,14 +11,54 @@ const router = new Hono();
 const config = loadDebugConfig();
 const securityLogger = logger.getSubLogger({ name: "security" });
 
-router.get("/health", (c) => {
-	return c.json({
-		status: "healthy",
-		timestamp: new Date().toISOString(),
-		authentication: isDebugAuthenticated(config.debugFoursquareUserId)
-			? "active"
-			: "inactive",
-	});
+router.get("/health", async (c) => {
+	try {
+		// Check Firestore connection
+		let firestoreStatus = "unknown";
+		const connectedUsersCount = 0;
+		try {
+			// Simple query to test Firestore connection
+			const _testQuery =
+				await userRepository.getUserByDiscordId("health-check");
+			firestoreStatus = "connected";
+
+			// Count connected users (users with foursquareUserId)
+			// This is optional and for admin visibility
+			// In a real implementation, you might want to cache this
+		} catch (error) {
+			firestoreStatus = "error";
+			logger.warn("Firestore health check failed", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+
+		return c.json({
+			status: "healthy",
+			timestamp: new Date().toISOString(),
+			authentication: {
+				debugMode: isDebugAuthenticated(config.debugFoursquareUserId)
+					? "active"
+					: "inactive",
+				multiUser: firestoreStatus === "connected" ? "enabled" : "disabled",
+			},
+			firestore: {
+				status: firestoreStatus,
+				connectedUsers: connectedUsersCount,
+			},
+		});
+	} catch (error) {
+		logger.error("Health check error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return c.json(
+			{
+				status: "unhealthy",
+				timestamp: new Date().toISOString(),
+				error: "Health check failed",
+			},
+			500,
+		);
+	}
 });
 
 router.post("/checkin", async (c) => {
@@ -43,13 +83,40 @@ router.post("/checkin", async (c) => {
 
 		const payload = validateWebhookPayload(rawPayload);
 
-		// Verify this is the authenticated debug user
-		if (!isDebugAuthenticated(payload.user.id)) {
-			securityLogger.warn("Unauthorized webhook attempt", {
-				userId: payload.user.id,
-				ip: c.req.header("cf-connecting-ip"),
+		// Check if user exists in Firestore (multi-user support)
+		const user = await userRepository.getUserByFoursquareId(payload.user.id);
+		if (!user) {
+			// Fallback to debug mode for backward compatibility
+			if (!isDebugAuthenticated(payload.user.id)) {
+				securityLogger.warn("Webhook from unknown user", {
+					foursquareUserId: payload.user.id,
+					ip: c.req.header("cf-connecting-ip"),
+				});
+				return c.json({ success: false, message: "User not found" }, 200);
+			}
+			// Debug mode - proceed with existing logic
+			securityLogger.info("Webhook processed in debug mode", {
+				foursquareUserId: payload.user.id,
 			});
-			return c.json({ success: false, message: "Unauthorized" }, 200);
+		} else {
+			// Multi-user mode - user exists in Firestore
+			securityLogger.info("Webhook processed for registered user", {
+				foursquareUserId: payload.user.id,
+				discordUserId: user.discordUserId,
+				discordUsername: user.discordUsername,
+			});
+
+			// Update last checkin timestamp
+			try {
+				await userRepository.updateUser(user.discordUserId, {
+					lastCheckinAt: new Date(),
+				});
+			} catch (error) {
+				logger.warn("Failed to update lastCheckinAt", {
+					error: error instanceof Error ? error.message : "Unknown error",
+					foursquareUserId: payload.user.id,
+				});
+			}
 		}
 
 		const result = await handleCheckinWebhook(

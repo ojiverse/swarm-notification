@@ -1,25 +1,46 @@
+import { Timestamp } from "@google-cloud/firestore";
 import { Hono } from "hono";
+import { requireAuth } from "../../middleware/auth.js";
 import { exchangeCodeForToken, getUserInfo } from "../../services/oauth.js";
+import { userRepository } from "../../services/user-repository.js";
+import { logger } from "../../utils/logger.js";
 
 const swarmAuthRouter = new Hono();
+const swarmLogger = logger.getSubLogger({ name: "auth.swarm" });
 
-swarmAuthRouter.get("/login", (c) => {
-	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
-	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
+// Protected route - requires JWT authentication
+swarmAuthRouter.get("/login", requireAuth(), (c) => {
+	try {
+		const clientId = process.env["FOURSQUARE_CLIENT_ID"];
+		const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
 
-	if (!clientId || !redirectUri) {
-		return c.text("Missing OAuth configuration", 500);
+		if (!clientId || !redirectUri) {
+			swarmLogger.error("Missing Foursquare OAuth configuration");
+			return c.json({ error: "OAuth configuration missing" }, 500);
+		}
+
+		const user = c.get("user");
+		swarmLogger.info("Swarm OAuth initiated", {
+			discordUserId: user.discordUserId,
+			discordUsername: user.discordUsername,
+		});
+
+		const authUrl = new URL("https://foursquare.com/oauth2/authenticate");
+		authUrl.searchParams.set("client_id", clientId);
+		authUrl.searchParams.set("response_type", "code");
+		authUrl.searchParams.set("redirect_uri", redirectUri);
+
+		return c.redirect(authUrl.toString());
+	} catch (error) {
+		swarmLogger.error("Swarm login error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return c.json({ error: "Failed to initiate Swarm login" }, 500);
 	}
-
-	const authUrl = new URL("https://foursquare.com/oauth2/authenticate");
-	authUrl.searchParams.set("client_id", clientId);
-	authUrl.searchParams.set("response_type", "code");
-	authUrl.searchParams.set("redirect_uri", redirectUri);
-
-	return c.redirect(authUrl.toString());
 });
 
-swarmAuthRouter.get("/callback", async (c) => {
+// Protected route - requires JWT authentication
+swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
 	const code = c.req.query("code");
 	const error = c.req.query("error");
 
@@ -48,38 +69,64 @@ swarmAuthRouter.get("/callback", async (c) => {
 	}
 
 	try {
+		const user = c.get("user");
 		const tokenResponse = await exchangeCodeForToken(code);
 		const userInfo = await getUserInfo(tokenResponse.access_token);
 
-		return c.html(`
-      <html>
-        <body>
-          <h1>Debug Token Retrieved</h1>
-          <p><strong>User ID:</strong> ${userInfo.id}</p>
-          <p><strong>Name:</strong> ${userInfo.firstName} ${userInfo.lastName || ""}</p>
-          
-          <h2>Environment Variables</h2>
-          <p>Add these to your .env.local file:</p>
-          <pre style="background: #f4f4f4; padding: 10px; border-radius: 4px;">
-DEBUG_FOURSQUARE_USER_ID=${userInfo.id}
-DEBUG_ACCESS_TOKEN=${tokenResponse.access_token}
-          </pre>
-          
-          <p style="color: red;"><strong>Security Note:</strong> Save these values securely and don't share them!</p>
-          <button onclick="copyToClipboard()">Copy to Clipboard</button>
-          
-          <script>
-            function copyToClipboard() {
-              const text = \`DEBUG_FOURSQUARE_USER_ID=${userInfo.id}
-DEBUG_ACCESS_TOKEN=${tokenResponse.access_token}\`;
-              navigator.clipboard.writeText(text);
-              alert('Copied to clipboard!');
-            }
-          </script>
-        </body>
-      </html>
-    `);
+		// Update user with Foursquare credentials
+		try {
+			await userRepository.updateUser(user.discordUserId, {
+				foursquareUserId: userInfo.id,
+				foursquareAccessToken: tokenResponse.access_token,
+				connectedAt: Timestamp.now(),
+			});
+
+			swarmLogger.info("Swarm OAuth successful", {
+				discordUserId: user.discordUserId,
+				discordUsername: user.discordUsername,
+				foursquareUserId: userInfo.id,
+				foursquareName: `${userInfo.firstName} ${userInfo.lastName || ""}`,
+			});
+
+			return c.html(`
+        <html>
+          <body>
+            <h1>Swarm Connected Successfully! 🎉</h1>
+            <p><strong>Discord User:</strong> ${user.discordUsername}</p>
+            <p><strong>Foursquare User:</strong> ${userInfo.firstName} ${userInfo.lastName || ""}</p>
+            <p><strong>Connected At:</strong> ${new Date().toLocaleString()}</p>
+            
+            <div style="background: #e7f5e7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3>✅ Setup Complete</h3>
+              <p>Your Discord account is now connected to Foursquare Swarm!</p>
+              <p>Check-ins will automatically appear in the Discord channel.</p>
+            </div>
+            
+            <p><a href="/">← Back to Dashboard</a></p>
+          </body>
+        </html>
+      `);
+		} catch (dbError) {
+			swarmLogger.error("Failed to save Swarm credentials", {
+				error: dbError instanceof Error ? dbError.message : "Unknown error",
+				discordUserId: user.discordUserId,
+				foursquareUserId: userInfo.id,
+			});
+			return c.html(`
+        <html>
+          <body>
+            <h1>Connection Error</h1>
+            <p>Failed to save your Swarm connection. Please try again.</p>
+            <p><a href="/auth/swarm/login">Try Again</a></p>
+          </body>
+        </html>
+      `);
+		}
 	} catch (error) {
+		swarmLogger.error("Swarm OAuth error", {
+			error: error instanceof Error ? error.message : "Unknown error",
+			discordUserId: c.get("user")?.discordUserId,
+		});
 		return c.html(`
       <html>
         <body>
