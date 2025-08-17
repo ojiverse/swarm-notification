@@ -1,97 +1,48 @@
-import type { TokenResponse, UserInfo } from "../types/oauth.js";
+import { randomBytes } from "node:crypto";
 import { logger } from "../utils/logger.js";
 
-const oauthLogger = logger.getSubLogger({ name: "oauth.foursquare" });
+const stateLogger = logger.getSubLogger({ name: "oauth.state" });
 
-// Global environment variable validation (fail fast on module import)
-const FOURSQUARE_CLIENT_ID = process.env["FOURSQUARE_CLIENT_ID"];
-const FOURSQUARE_CLIENT_SECRET = process.env["FOURSQUARE_CLIENT_SECRET"];
-const BASE_DOMAIN = process.env["BASE_DOMAIN"];
+// In-memory store for OAuth state (for production, consider Redis or database)
+const oauthStateStore = new Map<string, { timestamp: number }>();
+const STATE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
-if (!FOURSQUARE_CLIENT_ID || !FOURSQUARE_CLIENT_SECRET || !BASE_DOMAIN) {
-	throw new Error(
-		"Missing required OAuth environment variables (FOURSQUARE_CLIENT_ID, FOURSQUARE_CLIENT_SECRET, BASE_DOMAIN)",
-	);
+// Cleanup expired states periodically
+setInterval(
+	() => {
+		const now = Date.now();
+		for (const [state, data] of oauthStateStore.entries()) {
+			if (now - data.timestamp > STATE_EXPIRY_MS) {
+				oauthStateStore.delete(state);
+			}
+		}
+	},
+	5 * 60 * 1000,
+); // Run cleanup every 5 minutes
+
+export function generateOAuthState(): string {
+	const state = randomBytes(32).toString("hex");
+	oauthStateStore.set(state, { timestamp: Date.now() });
+	stateLogger.debug("OAuth state generated", { state });
+	return state;
 }
 
-export const exchangeCodeForToken = async (
-	code: string,
-): Promise<TokenResponse> => {
-	const redirectUri = `${BASE_DOMAIN}/auth/swarm/callback`;
-
-	oauthLogger.info("Starting Foursquare token exchange", {
-		redirectUri,
-		codeLength: code.length,
-	});
-
-	const response = await fetch("https://foursquare.com/oauth2/access_token", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded",
-		},
-		body: new URLSearchParams({
-			client_id: FOURSQUARE_CLIENT_ID,
-			client_secret: FOURSQUARE_CLIENT_SECRET,
-			grant_type: "authorization_code",
-			redirect_uri: redirectUri,
-			code,
-		}),
-	});
-
-	if (!response.ok) {
-		const errorText = await response.text();
-		oauthLogger.error("Foursquare token exchange failed", {
-			status: response.status,
-			statusText: response.statusText,
-			error: errorText.substring(0, 500),
-		});
-		throw new Error(`Token exchange failed: ${response.statusText}`);
+export function validateOAuthState(state: string): boolean {
+	const stored = oauthStateStore.get(state);
+	if (!stored) {
+		stateLogger.warn("OAuth state not found", { state });
+		return false;
 	}
 
-	const tokenData = await response.json();
-
-	oauthLogger.info("Foursquare token exchange successful", {
-		tokenType: tokenData.token_type,
-		hasAccessToken: !!tokenData.access_token,
-	});
-
-	return tokenData;
-};
-
-export const getUserInfo = async (accessToken: string): Promise<UserInfo> => {
-	oauthLogger.info("Fetching Foursquare user info");
-
-	const response = await fetch(
-		"https://api.foursquare.com/v2/users/self?v=20231010",
-		{
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
-		},
-	);
-
-	if (!response.ok) {
-		const errorText = await response.text();
-		oauthLogger.error("Foursquare user info fetch failed", {
-			status: response.status,
-			statusText: response.statusText,
-			error: errorText.substring(0, 500),
-		});
-		throw new Error(`User info fetch failed: ${response.statusText}`);
+	// Check if state is expired
+	if (Date.now() - stored.timestamp > STATE_EXPIRY_MS) {
+		oauthStateStore.delete(state);
+		stateLogger.warn("OAuth state expired", { state });
+		return false;
 	}
 
-	const data = await response.json();
-	const userInfo = {
-		id: data.response.user.id,
-		firstName: data.response.user.firstName,
-		lastName: data.response.user.lastName,
-	};
-
-	oauthLogger.info("Foursquare user info fetch successful", {
-		userId: userInfo.id,
-		firstName: userInfo.firstName,
-		hasLastName: !!userInfo.lastName,
-	});
-
-	return userInfo;
-};
+	// Remove state after validation (one-time use)
+	oauthStateStore.delete(state);
+	stateLogger.debug("OAuth state validated", { state });
+	return true;
+}

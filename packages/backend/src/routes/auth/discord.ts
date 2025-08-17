@@ -7,6 +7,10 @@ import {
 	getUserGuilds,
 	isServerMember,
 } from "../../services/discord.js";
+import {
+	generateOAuthState,
+	validateOAuthState,
+} from "../../services/oauth.js";
 import { userRepository } from "../../services/user-repository.js";
 import { logger } from "../../utils/logger.js";
 
@@ -19,8 +23,9 @@ if (!DISCORD_TARGET_SERVER_ID) {
 
 export async function discordLogin(c: Context): Promise<Response> {
 	try {
-		const oauthUrl = getDiscordOAuthURL();
-		authLogger.info("Discord OAuth login initiated");
+		const state = generateOAuthState();
+		const oauthUrl = getDiscordOAuthURL(state);
+		authLogger.info("Discord OAuth login initiated", { state });
 		return c.redirect(oauthUrl);
 	} catch (error) {
 		authLogger.error("Discord login error", {
@@ -33,9 +38,22 @@ export async function discordLogin(c: Context): Promise<Response> {
 export async function discordCallback(c: Context): Promise<Response> {
 	try {
 		const code = c.req.query("code");
+		const state = c.req.query("state");
+
 		if (!code) {
 			authLogger.warn("Discord callback missing authorization code");
 			return c.json({ error: "Authorization code required" }, 400);
+		}
+
+		if (!state) {
+			authLogger.warn("Discord callback missing state parameter");
+			return c.json({ error: "State parameter required" }, 400);
+		}
+
+		// Validate state to prevent CSRF attacks
+		if (!validateOAuthState(state)) {
+			authLogger.warn("Discord callback invalid state parameter", { state });
+			return c.json({ error: "Invalid or expired state parameter" }, 400);
 		}
 
 		// Exchange code for access token

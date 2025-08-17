@@ -317,7 +317,7 @@ export function isServerMember(
 	return isMember;
 }
 
-export function getDiscordOAuthURL(): string {
+export function getDiscordOAuthURL(state: string): string {
 	const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
 
 	const params = new URLSearchParams({
@@ -325,6 +325,7 @@ export function getDiscordOAuthURL(): string {
 		redirect_uri: redirectUri,
 		response_type: "code",
 		scope: "identify guilds",
+		state,
 	});
 
 	return `https://discord.com/oauth2/authorize?${params.toString()}`;

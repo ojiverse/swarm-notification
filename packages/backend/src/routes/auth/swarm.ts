@@ -1,7 +1,14 @@
 import { Timestamp } from "@google-cloud/firestore";
 import { Hono } from "hono";
 import { requireAuth } from "../../middleware/auth.js";
-import { exchangeCodeForToken, getUserInfo } from "../../services/oauth.js";
+import {
+	exchangeCodeForToken,
+	getUserInfo,
+} from "../../services/foursquare.js";
+import {
+	generateOAuthState,
+	validateOAuthState,
+} from "../../services/oauth.js";
 import { userRepository } from "../../services/user-repository.js";
 import { logger } from "../../utils/logger.js";
 
@@ -22,17 +29,20 @@ swarmAuthRouter.get("/login", requireAuth(), (c) => {
 		}
 
 		const redirectUri = `${baseDomain}/auth/swarm/callback`;
+		const state = generateOAuthState();
 
 		const user = c.get("user");
 		swarmLogger.info("Swarm OAuth initiated", {
 			discordUserId: user.discordUserId,
 			discordUsername: user.discordUsername,
+			state,
 		});
 
 		const authUrl = new URL("https://foursquare.com/oauth2/authenticate");
 		authUrl.searchParams.set("client_id", clientId);
 		authUrl.searchParams.set("response_type", "code");
 		authUrl.searchParams.set("redirect_uri", redirectUri);
+		authUrl.searchParams.set("state", state);
 
 		return c.redirect(authUrl.toString());
 	} catch (error) {
@@ -46,6 +56,7 @@ swarmAuthRouter.get("/login", requireAuth(), (c) => {
 // Protected route - requires JWT authentication
 swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
 	const code = c.req.query("code");
+	const state = c.req.query("state");
 	const error = c.req.query("error");
 
 	if (error) {
@@ -66,6 +77,38 @@ swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
         <body>
           <h1>Missing Authorization Code</h1>
           <p>No authorization code received from Foursquare</p>
+          <a href="/auth/swarm/login">Try Again</a>
+        </body>
+      </html>
+    `);
+	}
+
+	if (!state) {
+		swarmLogger.warn("Swarm callback missing state parameter", {
+			discordUserId: c.get("user")?.discordUserId,
+		});
+		return c.html(`
+      <html>
+        <body>
+          <h1>Security Error</h1>
+          <p>State parameter missing. Please try again.</p>
+          <a href="/auth/swarm/login">Try Again</a>
+        </body>
+      </html>
+    `);
+	}
+
+	// Validate state to prevent CSRF attacks
+	if (!validateOAuthState(state)) {
+		swarmLogger.warn("Swarm callback invalid state parameter", {
+			state,
+			discordUserId: c.get("user")?.discordUserId,
+		});
+		return c.html(`
+      <html>
+        <body>
+          <h1>Security Error</h1>
+          <p>Invalid or expired state parameter. Please try again.</p>
           <a href="/auth/swarm/login">Try Again</a>
         </body>
       </html>
