@@ -267,7 +267,10 @@ export function isServerMember(
 	guilds: DiscordGuild[],
 	targetServerId: string,
 ): boolean {
+	// Array.some() is optimal here - early exit when found (average O(n/2))
+	// Set conversion would always be O(n) + extra memory overhead
 	const isMember = guilds.some((guild) => guild.id === targetServerId);
+
 	discordLogger.info("Server membership check", {
 		targetServerId,
 		isMember,
