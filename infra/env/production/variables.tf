@@ -14,6 +14,11 @@ variable "image_url" {
   type        = string
 }
 
+variable "discord_target_server_id" {
+  description = "Discord server ID for Phase 2 multi-user authentication"
+  type        = string
+}
+
 # Note: All Foursquare and debug user configuration values are no longer variables
 # These will be set manually via Google Cloud Console for enhanced security:
 # - foursquare_client_id
