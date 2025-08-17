@@ -184,6 +184,13 @@ module "cloud_run" {
   allow_unauthenticated = true
 }
 
+# Grant Firestore permissions to Cloud Run service account
+resource "google_project_iam_member" "cloud_run_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${module.cloud_run.service_account_email}"
+}
+
 # Workload Identity Federation for GitHub Actions
 module "workload_identity" {
   source = "../../modules/workload_identity"
