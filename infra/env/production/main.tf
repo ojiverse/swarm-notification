@@ -201,7 +201,8 @@ module "workload_identity" {
     "roles/iam.workloadIdentityPoolAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/iam.serviceAccountUser",
-    "roles/serviceusage.serviceUsageAdmin"
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/datastore.owner"
   ]
 }
 
