@@ -50,7 +50,7 @@ function createApp(): Hono {
 
 // Initialize application
 async function main(): Promise<void> {
-	logger.info(`environment: ${process.env.NODE_ENV ?? "development"}`);
+	logger.info(`environment: ${process.env["NODE_ENV"] ?? "development"}`);
 	try {
 		// Create app
 		const app = createApp();
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
 		logger.info(`🚀 Swarm API server started`, {
 			port: config.port,
 			hostname: "0.0.0.0",
-			env: process.env.NODE_ENV || "development",
+			env: process.env["NODE_ENV"] || "development",
 		});
 
 		// Graceful shutdown handling

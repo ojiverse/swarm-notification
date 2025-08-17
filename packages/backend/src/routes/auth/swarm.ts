@@ -4,8 +4,8 @@ import { exchangeCodeForToken, getUserInfo } from "../../services/oauth.js";
 const swarmAuthRouter = new Hono();
 
 swarmAuthRouter.get("/login", (c) => {
-	const clientId = process.env.FOURSQUARE_CLIENT_ID;
-	const redirectUri = process.env.FOURSQUARE_REDIRECT_URI;
+	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
+	const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
 
 	if (!clientId || !redirectUri) {
 		return c.text("Missing OAuth configuration", 500);

@@ -1,6 +1,6 @@
 import { Logger } from "tslog";
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env["NODE_ENV"] === "production";
 
 export const logger = new Logger({
 	name: "swarm-api",
