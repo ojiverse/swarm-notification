@@ -8,7 +8,9 @@
 	],
 	"packageManager": "pnpm@10.14.0",
 	"scripts": {
-		"backend": "pnpm --filter backend"
+		"backend": "pnpm --filter backend",
+		"dev:emulator": "docker compose up firestore-emulator",
+		"dev:full": "docker compose up"
 	},
 	"lint-staged": {
 		"*": "secretlint",
