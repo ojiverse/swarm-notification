@@ -4,15 +4,15 @@ FROM node:24.6.0-alpine3.22 AS builder
 WORKDIR /app
 
 # Copy workspace and package files
-COPY ../../package.json ../../pnpm-lock.yaml ../../pnpm-workspace.yaml ./
-COPY package.json ./packages/backend/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json biome.json ./
+COPY packages/backend/package.json ./packages/backend/
 
 # Install tini and pnpm, then dependencies
 RUN apk add --no-cache tini && \
     npm install -g pnpm && pnpm install --frozen-lockfile
 
 # Copy source code
-COPY . ./packages/backend/
+COPY packages/backend/ ./packages/backend/
 
 # Build the application
 RUN pnpm --filter backend build

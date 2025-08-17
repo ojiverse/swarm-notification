@@ -81,7 +81,8 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./packages/backend
+          context: .
+          file: ./packages/backend/Dockerfile
           push: false
           load: true
           tags: |
@@ -106,7 +107,8 @@ jobs:
       - name: Push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./packages/backend
+          context: .
+          file: ./packages/backend/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:latest
