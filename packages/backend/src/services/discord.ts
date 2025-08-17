@@ -9,6 +9,25 @@ import { logger } from "../utils/logger.js";
 
 const discordLogger = logger.getSubLogger({ name: "discord" });
 
+// Global environment variable validation (fail fast on module import)
+const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
+const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
+const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
+const BASE_DOMAIN = process.env["BASE_DOMAIN"];
+
+if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
+	throw new Error(
+		"Discord OAuth environment variables (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_TARGET_SERVER_ID) are required",
+	);
+}
+
+if (!BASE_DOMAIN) {
+	throw new Error("BASE_DOMAIN environment variable is required");
+}
+
+const DISCORD_API_BASE = "https://discord.com/api/v10" as const;
+const DISCORD_OAUTH_BASE = `${DISCORD_API_BASE}/oauth2`;
+
 async function sendCheckinToDiscord(
 	checkin: ParsedCheckin,
 	webhookUrl: string,
@@ -112,24 +131,6 @@ async function postToDiscordWebhook(
 		body: JSON.stringify(payload),
 	});
 }
-
-const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
-const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
-const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
-const BASE_DOMAIN = process.env["BASE_DOMAIN"];
-
-if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
-	throw new Error(
-		"Discord OAuth environment variables (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_TARGET_SERVER_ID) are required",
-	);
-}
-
-if (!BASE_DOMAIN) {
-	throw new Error("BASE_DOMAIN environment variable is required");
-}
-
-const DISCORD_API_BASE = "https://discord.com/api/v10";
-const DISCORD_OAUTH_BASE = "https://discord.com/api/v10/oauth2";
 
 export async function exchangeCodeForToken(code: string): Promise<string> {
 	try {

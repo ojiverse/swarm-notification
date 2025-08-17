@@ -3,18 +3,21 @@ import { logger } from "../utils/logger.js";
 
 const oauthLogger = logger.getSubLogger({ name: "oauth.foursquare" });
 
+// Global environment variable validation (fail fast on module import)
+const FOURSQUARE_CLIENT_ID = process.env["FOURSQUARE_CLIENT_ID"];
+const FOURSQUARE_CLIENT_SECRET = process.env["FOURSQUARE_CLIENT_SECRET"];
+const BASE_DOMAIN = process.env["BASE_DOMAIN"];
+
+if (!FOURSQUARE_CLIENT_ID || !FOURSQUARE_CLIENT_SECRET || !BASE_DOMAIN) {
+	throw new Error(
+		"Missing required OAuth environment variables (FOURSQUARE_CLIENT_ID, FOURSQUARE_CLIENT_SECRET, BASE_DOMAIN)",
+	);
+}
+
 export const exchangeCodeForToken = async (
 	code: string,
 ): Promise<TokenResponse> => {
-	const clientId = process.env["FOURSQUARE_CLIENT_ID"];
-	const clientSecret = process.env["FOURSQUARE_CLIENT_SECRET"];
-	const baseDomain = process.env["BASE_DOMAIN"];
-
-	if (!clientId || !clientSecret || !baseDomain) {
-		throw new Error("Missing required OAuth environment variables");
-	}
-
-	const redirectUri = `${baseDomain}/auth/swarm/callback`;
+	const redirectUri = `${BASE_DOMAIN}/auth/swarm/callback`;
 
 	oauthLogger.info("Starting Foursquare token exchange", {
 		redirectUri,
@@ -27,8 +30,8 @@ export const exchangeCodeForToken = async (
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 		body: new URLSearchParams({
-			client_id: clientId,
-			client_secret: clientSecret,
+			client_id: FOURSQUARE_CLIENT_ID,
+			client_secret: FOURSQUARE_CLIENT_SECRET,
 			grant_type: "authorization_code",
 			redirect_uri: redirectUri,
 			code,
