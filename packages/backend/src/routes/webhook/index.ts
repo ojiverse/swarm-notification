@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { loadDebugConfig } from "../../config.js";
-import { userRepository } from "../../services/user-repository.js";
+import { userRepository } from "../../repository/user.js";
 import {
 	handleCheckinWebhook,
 	validateWebhookPayload,
-} from "../../services/webhook.js";
+} from "../../services/checkin.js";
 import { logger } from "../../utils/logger.js";
 
 const router = new Hono();

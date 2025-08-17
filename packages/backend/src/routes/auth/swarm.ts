@@ -1,15 +1,12 @@
 import { Timestamp } from "@google-cloud/firestore";
 import { Hono } from "hono";
+import { generateOAuthState, validateOAuthState } from "../../lib/oauth.js";
 import { requireAuth } from "../../middleware/auth.js";
+import { userRepository } from "../../repository/user.js";
 import {
 	exchangeCodeForToken,
 	getUserInfo,
 } from "../../services/foursquare.js";
-import {
-	generateOAuthState,
-	validateOAuthState,
-} from "../../services/oauth.js";
-import { userRepository } from "../../services/user-repository.js";
 import { logger } from "../../utils/logger.js";
 
 const swarmAuthRouter = new Hono();

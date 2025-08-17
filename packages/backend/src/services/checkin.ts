@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { Timestamp } from "@google-cloud/firestore";
+import { userRepository } from "../repository/user.js";
 import {
 	type ParsedCheckin,
 	ParsedCheckinSchema,
@@ -7,7 +8,6 @@ import {
 	WebhookPayloadSchema,
 } from "../types.js";
 import { logger } from "../utils/logger.js";
-import { userRepository } from "./user-repository.js";
 
 const webhookLogger = logger.getSubLogger({ name: "webhook" });
 const securityLogger = logger.getSubLogger({ name: "security" });

@@ -1,6 +1,6 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import { createJWT, verifyJWT } from "../services/jwt.js";
+import { createJWT, verifyJWT } from "../lib/jwt.js";
 import type { AuthenticatedContext, JWTPayload } from "../types/auth.js";
 import { logger } from "../utils/logger.js";
 

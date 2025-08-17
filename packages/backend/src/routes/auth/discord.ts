@@ -1,5 +1,7 @@
 import type { Context } from "hono";
+import { generateOAuthState, validateOAuthState } from "../../lib/oauth.js";
 import { setJWTCookie } from "../../middleware/auth.js";
+import { userRepository } from "../../repository/user.js";
 import {
 	exchangeCodeForToken,
 	getDiscordOAuthURL,
@@ -7,11 +9,6 @@ import {
 	getUserGuilds,
 	isServerMember,
 } from "../../services/discord.js";
-import {
-	generateOAuthState,
-	validateOAuthState,
-} from "../../services/oauth.js";
-import { userRepository } from "../../services/user-repository.js";
 import { logger } from "../../utils/logger.js";
 
 const authLogger = logger.getSubLogger({ name: "auth.discord" });
