@@ -43,6 +43,13 @@ module "artifact_registry" {
   cloud_run_service_accounts = [module.cloud_run.service_account_email]
 }
 
+# Firestore
+module "firestore" {
+  source = "../../modules/firestore"
+  
+  project_id = var.project_id
+}
+
 # Secret Manager
 module "secret_manager" {
   source = "../../modules/secret_manager"
@@ -87,6 +94,25 @@ module "secret_manager" {
       use_dummy   = true
       dummy_value = "DEBUG_USER_ID_SET_VIA_CONSOLE"
     }
+    # Phase 2: Discord OAuth and JWT secrets
+    jwt-secret = {
+      value       = "" # Not used when use_dummy = true
+      description = "JWT secret key for session encryption"
+      use_dummy   = true
+      dummy_value = "JWT_SECRET_SET_VIA_CONSOLE"
+    }
+    discord-client-id = {
+      value       = "" # Not used when use_dummy = true
+      description = "Discord OAuth application client ID"
+      use_dummy   = true
+      dummy_value = "DISCORD_CLIENT_ID_SET_VIA_CONSOLE"
+    }
+    discord-client-secret = {
+      value       = "" # Not used when use_dummy = true
+      description = "Discord OAuth application client secret"
+      use_dummy   = true
+      dummy_value = "DISCORD_CLIENT_SECRET_SET_VIA_CONSOLE"
+    }
   }
   
   cloud_run_service_account = module.cloud_run.service_account_email
@@ -106,6 +132,7 @@ module "cloud_run" {
   environment_variables = {
     NODE_ENV                = "production"
     FOURSQUARE_REDIRECT_URI = "https://${local.service_name}-${random_id.suffix.hex}-uc.a.run.app/auth/swarm/callback"
+    DISCORD_TARGET_SERVER_ID = var.discord_target_server_id
   }
   
   secret_environment_variables = {
@@ -131,6 +158,19 @@ module "cloud_run" {
     }
     DEBUG_FOURSQUARE_USER_ID = {
       secret_name = module.secret_manager.secret_ids["debug-foursquare-user-id"]
+      version     = "latest"
+    }
+    # Phase 2: Discord OAuth and JWT secrets
+    JWT_SECRET = {
+      secret_name = module.secret_manager.secret_ids["jwt-secret"]
+      version     = "latest"
+    }
+    DISCORD_CLIENT_ID = {
+      secret_name = module.secret_manager.secret_ids["discord-client-id"]
+      version     = "latest"
+    }
+    DISCORD_CLIENT_SECRET = {
+      secret_name = module.secret_manager.secret_ids["discord-client-secret"]
       version     = "latest"
     }
   }
