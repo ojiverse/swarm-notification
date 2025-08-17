@@ -116,11 +116,16 @@ async function postToDiscordWebhook(
 const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
 const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
 const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
+const BASE_DOMAIN = process.env["BASE_DOMAIN"];
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
 	throw new Error(
 		"Discord OAuth environment variables (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_TARGET_SERVER_ID) are required",
 	);
+}
+
+if (!BASE_DOMAIN) {
+	throw new Error("BASE_DOMAIN environment variable is required");
 }
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
@@ -129,13 +134,7 @@ const DISCORD_OAUTH_BASE = "https://discord.com/oauth2";
 export async function exchangeCodeForToken(code: string): Promise<string> {
 	try {
 		const tokenUrl = `${DISCORD_OAUTH_BASE}/token`;
-		const baseDomain = process.env["BASE_DOMAIN"];
-
-		if (!baseDomain) {
-			throw new Error("BASE_DOMAIN environment variable is required");
-		}
-
-		const redirectUri = `${baseDomain}/auth/discord/callback`;
+		const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
 
 		const params = new URLSearchParams({
 			client_id: DISCORD_CLIENT_ID!,
@@ -280,13 +279,7 @@ export function isServerMember(
 }
 
 export function getDiscordOAuthURL(): string {
-	const baseDomain = process.env["BASE_DOMAIN"];
-
-	if (!baseDomain) {
-		throw new Error("BASE_DOMAIN environment variable is required");
-	}
-
-	const redirectUri = `${baseDomain}/auth/discord/callback`;
+	const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
 
 	const params = new URLSearchParams({
 		client_id: DISCORD_CLIENT_ID!,

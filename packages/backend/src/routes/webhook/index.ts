@@ -15,6 +15,10 @@ const securityLogger = logger.getSubLogger({ name: "security" });
 
 router.get("/health", async (c) => {
 	try {
+		// Check BASE_DOMAIN configuration
+		const baseDomain = process.env["BASE_DOMAIN"];
+		const baseDomainStatus = baseDomain ? "configured" : "missing";
+
 		// Check Firestore connection
 		let firestoreStatus = "unknown";
 		const connectedUsersCount = 0;
@@ -36,6 +40,9 @@ router.get("/health", async (c) => {
 		return c.json({
 			status: "healthy",
 			timestamp: new Date().toISOString(),
+			configuration: {
+				baseDomain: baseDomainStatus,
+			},
 			authentication: {
 				debugMode: isDebugAuthenticated(config.debugFoursquareUserId)
 					? "active"
