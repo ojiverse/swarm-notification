@@ -131,7 +131,7 @@ module "cloud_run" {
   
   environment_variables = {
     NODE_ENV                = "production"
-    BASE_DOMAIN             = module.cloud_run.service_url
+    # BASE_DOMAIN             = module.cloud_run.service_url  # TODO: Fix circular dependency
     DISCORD_TARGET_SERVER_ID = var.discord_target_server_id
   }
   
