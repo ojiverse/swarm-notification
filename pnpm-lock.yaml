@@ -45,7 +45,7 @@ importers:
   packages/backend:
     dependencies:
       '@google-cloud/firestore':
-        specifier: ^7.11.3
+        specifier: 7.11.3
         version: 7.11.3
       '@hono/node-server':
         specifier: 1.18.2
