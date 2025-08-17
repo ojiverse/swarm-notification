@@ -1,10 +1,10 @@
-import type { DiscordGuild, DiscordUser } from "../types/auth.js";
+import type { ParsedCheckin, Venue } from "../types/checkin.js";
 import type {
 	DiscordEmbed,
+	DiscordGuild,
+	DiscordUser,
 	DiscordWebhookPayload,
-	ParsedCheckin,
-	Venue,
-} from "../types.js";
+} from "../types/discord.js";
 import { logger } from "../utils/logger.js";
 
 const discordLogger = logger.getSubLogger({ name: "discord" });

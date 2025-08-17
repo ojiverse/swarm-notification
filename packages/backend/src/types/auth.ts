@@ -1,3 +1,4 @@
+// JWT and authentication types
 export type JWTPayload = {
 	readonly discordUserId: string;
 	readonly discordUsername: string;
@@ -8,15 +9,4 @@ export type JWTPayload = {
 
 export type AuthenticatedContext = {
 	user: JWTPayload;
-};
-
-export type DiscordUser = {
-	readonly id: string;
-	readonly username: string;
-	readonly global_name?: string;
-};
-
-export type DiscordGuild = {
-	readonly id: string;
-	readonly name: string;
 };

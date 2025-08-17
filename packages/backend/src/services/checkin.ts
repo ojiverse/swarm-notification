@@ -6,7 +6,7 @@ import {
 	ParsedCheckinSchema,
 	type WebhookPayload,
 	WebhookPayloadSchema,
-} from "../types.js";
+} from "../types/checkin.js";
 import { logger } from "../utils/logger.js";
 
 const webhookLogger = logger.getSubLogger({ name: "webhook" });
