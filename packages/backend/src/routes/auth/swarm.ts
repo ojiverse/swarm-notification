@@ -12,12 +12,16 @@ const swarmLogger = logger.getSubLogger({ name: "auth.swarm" });
 swarmAuthRouter.get("/login", requireAuth(), (c) => {
 	try {
 		const clientId = process.env["FOURSQUARE_CLIENT_ID"];
-		const redirectUri = process.env["FOURSQUARE_REDIRECT_URI"];
+		const baseDomain = process.env["BASE_DOMAIN"];
 
-		if (!clientId || !redirectUri) {
-			swarmLogger.error("Missing Foursquare OAuth configuration");
+		if (!clientId || !baseDomain) {
+			swarmLogger.error(
+				"Missing OAuth configuration (FOURSQUARE_CLIENT_ID, BASE_DOMAIN)",
+			);
 			return c.json({ error: "OAuth configuration missing" }, 500);
 		}
+
+		const redirectUri = `${baseDomain}/auth/swarm/callback`;
 
 		const user = c.get("user");
 		swarmLogger.info("Swarm OAuth initiated", {
