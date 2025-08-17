@@ -14,7 +14,10 @@ export async function createJWT(
 	payload: Omit<JWTPayload, "iat" | "exp">,
 ): Promise<string> {
 	try {
-		const jwt = await new jose.SignJWT(payload)
+		// Explicitly exclude iat/exp to prevent accidental inclusion
+		const { iat, exp, ...cleanPayload } = payload as any;
+
+		const jwt = await new jose.SignJWT(cleanPayload)
 			.setProtectedHeader({ alg: "HS256" })
 			.setIssuedAt()
 			.setExpirationTime(JWT_EXPIRY)
