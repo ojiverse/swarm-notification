@@ -5,7 +5,6 @@ export type UserRecord = {
 	readonly discordUsername: string;
 	readonly discordDisplayName?: string;
 	readonly foursquareUserId?: string;
-	readonly foursquareAccessToken?: string;
 	readonly connectedAt?: Timestamp;
 	readonly createdAt: Timestamp;
 	readonly lastUpdatedAt: Timestamp;
