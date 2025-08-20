@@ -1,31 +1,39 @@
 # Swarm API Real-time Integration - Development Knowledge Base
 
 ## Project Overview
-This project implements a real-time webhook service that receives Foursquare Swarm check-in data via Real-time Push API and forwards notifications to Discord. Currently deployed on Google Cloud Run with a debug-mode authentication system.
+This project implements a real-time webhook service that receives Foursquare Swarm check-in data via Real-time Push API and forwards notifications to Discord. Deployed on Google Cloud Run with full multi-user support, Discord OAuth authentication, and Firestore user management.
 
 ## Architecture & Technology Stack
 
 ### Core Technologies
 - **Runtime**: Node.js 18+ with TypeScript
 - **Framework**: Hono (lightweight web framework)
+- **Database**: Google Cloud Firestore for user data storage
+- **Authentication**: Discord OAuth + JWT with secure cookie sessions
 - **Validation**: Zod schemas for type-safe data validation
 - **Logging**: tslog with structured logging
-- **Infrastructure**: Google Cloud Platform (Cloud Run, Secret Manager, Artifact Registry)
+- **Infrastructure**: Google Cloud Platform (Cloud Run, Secret Manager, Artifact Registry, Firestore)
 
 ### Key Components
-- **Webhook Handler**: `src/routes/webhook/index.ts` - Processes Foursquare push notifications
-- **Authentication**: `src/services/auth.ts` - Debug-mode user authentication
-- **Discord Integration**: `src/services/discord.ts` - Formats and sends Discord embeds
-- **OAuth Flow**: `src/routes/auth/swarm.ts` - Handles Foursquare OAuth for token acquisition
+- **Webhook Handler**: `packages/backend/src/routes/webhook/index.ts` - Processes multi-user Foursquare push notifications
+- **Authentication System**: 
+  - `packages/backend/src/routes/auth/discord.ts` - Discord OAuth flow
+  - `packages/backend/src/middleware/auth.ts` - JWT authentication middleware
+  - `packages/backend/src/lib/jwt.ts` - JWT token management
+- **User Management**: `packages/backend/src/repository/user.ts` - Firestore user data operations
+- **Discord Integration**: `packages/backend/src/services/discord.ts` - Formats and sends Discord embeds
+- **OAuth Flow**: `packages/backend/src/routes/auth/swarm.ts` - Handles Foursquare OAuth for user account linking
 
 ## Development Workflows
 
 ### Local Development Setup
 1. Configure environment variables in `.env.local`
-2. Run OAuth flow via `/auth/swarm/login` to obtain debug tokens
-3. Use tunneling service (Cloudflare Tunnel/ngrok) for external webhook access
-4. Configure Foursquare Developer Console with tunnel URL
-5. Test with actual Swarm check-ins
+2. Start Firestore emulator (automatically configured for local development)
+3. Authenticate via `/auth/discord/login` for Discord OAuth
+4. Connect Foursquare account via `/auth/swarm/login`
+5. Use tunneling service (Cloudflare Tunnel/ngrok) for external webhook access
+6. Configure Foursquare Developer Console with tunnel URL
+7. Test with actual Swarm check-ins
 
 ### Code Quality Commands
 ```bash
@@ -43,11 +51,13 @@ pnpm dev            # Development server
 ## Security Implementation
 
 ### Current Security Model
-- **Authentication**: Single debug user ID verification
-- **Token Storage**: In-memory access token storage
-- **Webhook Verification**: Push secret validation
-- **Input Validation**: Strict Zod schema validation
-- **Security Logging**: Dedicated security event logging
+- **Authentication**: Discord OAuth + JWT with secure HTTP-only cookies
+- **User Management**: Firestore-based user profiles with Discord server membership verification
+- **Session Security**: 7-day JWT expiration with Bearer token and cookie support
+- **Webhook Verification**: Push secret validation and user lookup via Firestore
+- **Input Validation**: Strict Zod schema validation across all endpoints
+- **CSRF Protection**: OAuth state parameter validation
+- **Security Logging**: Comprehensive security event logging without sensitive data exposure
 
 ### Security Considerations
 - All webhook requests return 200 OK (Foursquare requirement)
@@ -58,8 +68,13 @@ pnpm dev            # Development server
 ## API Endpoints & Data Flow
 
 ### Authentication Endpoints
-- `GET /auth/swarm/login` - Initiates OAuth flow
-- `GET /auth/swarm/callback` - Handles OAuth callback and displays tokens
+- `GET /auth/discord/login` - Initiates Discord OAuth flow
+- `GET /auth/discord/callback` - Handles Discord OAuth callback and sets JWT session
+- `GET /auth/swarm/login` - Initiates Foursquare OAuth flow (requires Discord authentication)
+- `GET /auth/swarm/callback` - Handles Foursquare OAuth callback and links account
+
+### User Management Endpoints
+- `GET /users/@me` - Get current user profile and connection status
 
 ### Webhook Endpoints
 - `POST /webhook/checkin` - Receives Foursquare check-in webhooks
@@ -67,11 +82,12 @@ pnpm dev            # Development server
 
 ### Data Processing Flow
 1. Webhook payload validation (`WebhookPayloadSchema`)
-2. User authentication verification
-3. Push secret validation
-4. Check-in data parsing (`ParsedCheckinSchema`)
-5. Discord embed formatting
-6. Asynchronous Discord webhook delivery
+2. Push secret validation
+3. Foursquare user ID lookup in Firestore
+4. User authentication and Discord server verification
+5. Check-in data parsing (`ParsedCheckinSchema`)
+6. Discord embed formatting with user-specific data
+7. Asynchronous Discord webhook delivery
 
 ## Infrastructure & Deployment
 
@@ -82,29 +98,37 @@ pnpm dev            # Development server
 
 ### Cloud Resources
 - **Cloud Run**: Auto-scaling container service (1 vCPU, 512MB)
-- **Secret Manager**: Stores sensitive configuration
+- **Firestore**: NoSQL database for user profiles and session data
+- **Secret Manager**: Stores sensitive configuration (Discord client secret, JWT secret, etc.)
 - **Artifact Registry**: Container image storage
-- **Cloud Logging/Monitoring**: Observability stack
+- **Cloud Logging/Monitoring**: Observability stack with structured logging
 
 ### Cost Optimization
 - Min instances: 0 (cold start acceptable)
 - Pay-per-request pricing model
 - Estimated cost: ~$1.11/month (debug phase)
 
-## Future Development Roadmap
+## Current Implementation Status
 
-### Phase 2: Multi-User Support
-- **Database**: Add Firestore for user token storage
-- **Authentication**: Implement full OAuth session management
-- **User Management**: Support multiple authenticated users
-- **Settings**: Per-user notification preferences
+### ✅ Completed Features
+- **Multi-User Support**: Full Discord OAuth + Firestore user management
+- **Authentication**: JWT-based session management with secure cookies
+- **User Profiles**: Discord and Foursquare account linking per user
+- **Database**: Production Firestore integration with comprehensive user schema
+- **Security**: Webhook verification, CSRF protection, server membership validation
 
-### Technical Debt & Improvements
-- **Error Handling**: Enhanced retry mechanisms for Discord webhook failures
+### 🚧 Partial Implementation
+- **User Management API**: Profile viewing implemented, but missing logout and disconnect endpoints
+- **Error Handling**: Basic retry mechanisms in place, needs enhancement
+
+### Next Phase Development
+- **User Settings**: Per-user notification preferences and Discord channel configuration
+- **API Completeness**: Add missing endpoints (logout, disconnect Swarm account)
 - **Rate Limiting**: Implement proper rate limiting for webhook endpoints
-- **Monitoring**: Add comprehensive health checks and alerting
+- **Enhanced Error Handling**: Improved retry mechanisms for Discord webhook failures
+- **Monitoring**: Comprehensive health checks and alerting beyond current status endpoint
 - **Testing**: Unit and integration test coverage
-- **Documentation**: API documentation and user guides
+- **Admin Features**: User management and analytics dashboard
 
 ### Scaling Considerations
 - **Performance**: Optimize for higher check-in volumes
@@ -169,25 +193,34 @@ curl https://swarm-api-oj7mv2xyia-uc.a.run.app/webhook/health
 
 ### Required Environment Variables
 ```bash
-# OAuth Configuration
-FOURSQUARE_CLIENT_ID=your_client_id
-FOURSQUARE_CLIENT_SECRET=your_client_secret
-FOURSQUARE_REDIRECT_URI=http://localhost:3000/auth/swarm/callback
+# Discord OAuth Configuration
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_GUILD_ID=your_discord_server_id
 
-# Push API Configuration
+# Foursquare OAuth Configuration
+FOURSQUARE_CLIENT_ID=your_foursquare_client_id
+FOURSQUARE_CLIENT_SECRET=your_foursquare_client_secret
+
+# API Configuration
 FOURSQUARE_PUSH_SECRET=your_push_secret
 DISCORD_WEBHOOK_URL=your_discord_webhook_url
+BASE_DOMAIN=https://your-domain.com
 
-# Debug Authentication (obtained via OAuth flow)
-DEBUG_FOURSQUARE_USER_ID=user_id
-DEBUG_ACCESS_TOKEN=access_token
+# Security
+JWT_SECRET=your_jwt_secret_key
 
 # Server Configuration
 PORT=3000
 NODE_ENV=development
+
+# Firestore (auto-configured for production, emulator for development)
+GOOGLE_CLOUD_PROJECT=swarm-notifier
 ```
 
 ### Production Secrets (Secret Manager)
-- `DEBUG_ACCESS_TOKEN`: User access token
-- `DISCORD_WEBHOOK_URL`: Discord webhook endpoint
+- `DISCORD_CLIENT_SECRET`: Discord OAuth application secret
+- `DISCORD_WEBHOOK_URL`: Discord webhook endpoint for notifications
+- `FOURSQUARE_CLIENT_SECRET`: Foursquare OAuth application secret
 - `FOURSQUARE_PUSH_SECRET`: Webhook signature verification
+- `JWT_SECRET`: JWT signing key for session management
