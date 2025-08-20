@@ -121,7 +121,6 @@ swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
 		try {
 			await userRepository.updateUser(user.discordUserId, {
 				foursquareUserId: userInfo.id,
-				foursquareAccessToken: tokenResponse.access_token,
 				connectedAt: Timestamp.now(),
 			});
 
