@@ -133,6 +133,9 @@ swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
 
 			return c.html(`
         <html>
+          <head>
+            <meta http-equiv="refresh" content="3;url=/users/@me">
+          </head>
           <body>
             <h1>Swarm Connected Successfully! 🎉</h1>
             <p><strong>Discord User:</strong> ${user.discordUsername}</p>
@@ -145,7 +148,8 @@ swarmAuthRouter.get("/callback", requireAuth(), async (c) => {
               <p>Check-ins will automatically appear in the Discord channel.</p>
             </div>
             
-            <p><a href="/">← Back to Dashboard</a></p>
+            <p>Redirecting to your profile in 3 seconds...</p>
+            <p><a href="/users/@me">View Profile Now →</a></p>
           </body>
         </html>
       `);

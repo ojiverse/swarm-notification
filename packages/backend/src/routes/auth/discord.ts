@@ -77,6 +77,7 @@ export async function discordCallback(c: Context): Promise<Response> {
 
 		// Create or update user record
 		let user: Awaited<ReturnType<typeof userRepository.getUserByDiscordId>>;
+		let isNewUser = false;
 		try {
 			user = await userRepository.getUserByDiscordId(discordUser.id);
 			if (!user) {
@@ -88,6 +89,7 @@ export async function discordCallback(c: Context): Promise<Response> {
 						discordDisplayName: discordUser.global_name,
 					}),
 				});
+				isNewUser = true;
 				authLogger.info("New Discord user created", {
 					discordUserId: discordUser.id,
 					discordUsername: discordUser.username,
@@ -126,8 +128,59 @@ export async function discordCallback(c: Context): Promise<Response> {
 				discordUsername: discordUser.username,
 			});
 
-			// Redirect to dashboard (or wherever appropriate)
-			return c.redirect("/");
+			// Seamless redirect to Swarm OAuth for new users or users without Swarm connection
+			const hasSwarmConnection = !!user.foursquareUserId;
+			if (isNewUser || !hasSwarmConnection) {
+				authLogger.info("Redirecting to Swarm OAuth for seamless onboarding", {
+					discordUserId: discordUser.id,
+					isNewUser,
+					hasSwarmConnection,
+				});
+
+				return c.html(`
+					<html>
+						<head>
+							<meta http-equiv="refresh" content="3;url=/auth/swarm/login">
+						</head>
+						<body>
+							<h1>Discord Connected Successfully! 🎉</h1>
+							<p><strong>Welcome:</strong> ${discordUser.username}</p>
+							${discordUser.global_name ? `<p><strong>Display Name:</strong> ${discordUser.global_name}</p>` : ""}
+							<p><strong>Connected At:</strong> ${new Date().toLocaleString()}</p>
+							
+							<div style="background: #5865f2; color: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+								<h3>✅ Discord Authentication Complete</h3>
+								<p>Now let's connect your Foursquare Swarm account to complete the setup!</p>
+							</div>
+							
+							<p>Redirecting to Swarm connection in 3 seconds...</p>
+							<p><a href="/auth/swarm/login">Connect Swarm Now →</a></p>
+						</body>
+					</html>
+				`);
+			}
+
+			// Existing users with Swarm connection get a welcome back message
+			return c.html(`
+				<html>
+					<head>
+						<meta http-equiv="refresh" content="2;url=/users/@me">
+					</head>
+					<body>
+						<h1>Welcome Back! 👋</h1>
+						<p><strong>Discord User:</strong> ${discordUser.username}</p>
+						${discordUser.global_name ? `<p><strong>Display Name:</strong> ${discordUser.global_name}</p>` : ""}
+						
+						<div style="background: #e7f5e7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+							<h3>✅ Already Set Up</h3>
+							<p>Your Discord and Swarm accounts are already connected!</p>
+						</div>
+						
+						<p>Redirecting to your profile in 2 seconds...</p>
+						<p><a href="/users/@me">View Profile Now →</a></p>
+					</body>
+				</html>
+			`);
 		} catch (error) {
 			authLogger.error("Failed to set JWT cookie", {
 				error: error instanceof Error ? error.message : "Unknown error",
