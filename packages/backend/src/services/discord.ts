@@ -10,20 +10,13 @@ import { logger } from "../utils/logger.js";
 const discordLogger = logger.getSubLogger({ name: "discord" });
 
 // Global environment variable validation (fail fast on module import)
-const DISCORD_CLIENT_ID = process.env["DISCORD_CLIENT_ID"];
-const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"];
-const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
-const BASE_DOMAIN = process.env["BASE_DOMAIN"];
+import { requireEnv } from "../lib/env.js";
 
-if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_TARGET_SERVER_ID) {
-	throw new Error(
-		"Discord OAuth environment variables (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_TARGET_SERVER_ID) are required",
-	);
-}
+const DISCORD_CLIENT_ID = requireEnv("DISCORD_CLIENT_ID");
+const DISCORD_CLIENT_SECRET = requireEnv("DISCORD_CLIENT_SECRET");
+const BASE_DOMAIN = requireEnv("BASE_DOMAIN");
 
-if (!BASE_DOMAIN) {
-	throw new Error("BASE_DOMAIN environment variable is required");
-}
+// DISCORD_TARGET_SERVER_ID is validated in auth/discord.ts where it's used
 
 const DISCORD_API_BASE = "https://discord.com/api/v10" as const;
 const DISCORD_OAUTH_BASE = `${DISCORD_API_BASE}/oauth2`;
@@ -145,8 +138,8 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
 		});
 
 		const params = new URLSearchParams({
-			client_id: DISCORD_CLIENT_ID!,
-			client_secret: DISCORD_CLIENT_SECRET!,
+			client_id: DISCORD_CLIENT_ID,
+			client_secret: DISCORD_CLIENT_SECRET,
 			grant_type: "authorization_code",
 			code,
 			redirect_uri: redirectUri,
@@ -321,7 +314,7 @@ export function getDiscordOAuthURL(state: string): string {
 	const redirectUri = `${BASE_DOMAIN}/auth/discord/callback`;
 
 	const params = new URLSearchParams({
-		client_id: DISCORD_CLIENT_ID!,
+		client_id: DISCORD_CLIENT_ID,
 		redirect_uri: redirectUri,
 		response_type: "code",
 		scope: "identify guilds",

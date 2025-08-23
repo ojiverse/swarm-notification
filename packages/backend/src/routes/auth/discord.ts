@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { requireEnv } from "../../lib/env.js";
 import { generateOAuthState, validateOAuthState } from "../../lib/oauth.js";
 import { setJWTCookie } from "../../middleware/auth.js";
 import { userRepository } from "../../repository/user.js";
@@ -12,11 +13,7 @@ import {
 import { logger } from "../../utils/logger.js";
 
 const authLogger = logger.getSubLogger({ name: "auth.discord" });
-
-const DISCORD_TARGET_SERVER_ID = process.env["DISCORD_TARGET_SERVER_ID"];
-if (!DISCORD_TARGET_SERVER_ID) {
-	throw new Error("DISCORD_TARGET_SERVER_ID environment variable is required");
-}
+const DISCORD_TARGET_SERVER_ID = requireEnv("DISCORD_TARGET_SERVER_ID");
 
 export async function discordLogin(c: Context): Promise<Response> {
 	try {
@@ -63,7 +60,7 @@ export async function discordCallback(c: Context): Promise<Response> {
 		const guilds = await getUserGuilds(accessToken);
 
 		// Verify server membership
-		if (!isServerMember(guilds, DISCORD_TARGET_SERVER_ID!)) {
+		if (!isServerMember(guilds, DISCORD_TARGET_SERVER_ID)) {
 			authLogger.warn("Discord user not member of target server", {
 				discordUserId: discordUser.id,
 				discordUsername: discordUser.username,
