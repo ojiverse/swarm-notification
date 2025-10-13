@@ -168,3 +168,95 @@ jobs:
           echo "- **Service URL**: ${{ steps.service-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ✅ Successfully deployed" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Determine Status
+        id: status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "color=3066993" >> $GITHUB_OUTPUT  # Green
+            echo "status=✅ Success" >> $GITHUB_OUTPUT
+          else
+            echo "color=15158332" >> $GITHUB_OUTPUT  # Red
+            echo "status=❌ Failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR Information
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Get the PR that was merged into this commit
+          PR_DATA=$(gh pr list \
+            --repo ${{ github.repository }} \
+            --state merged \
+            --search "${{ github.sha }}" \
+            --json number,title,url \
+            --limit 1)
+
+          if [ "$PR_DATA" != "[]" ]; then
+            PR_NUMBER=$(echo "$PR_DATA" | jq -r '.[0].number')
+            PR_TITLE=$(echo "$PR_DATA" | jq -r '.[0].title')
+            PR_URL=$(echo "$PR_DATA" | jq -r '.[0].url')
+
+            echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+            echo "url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Discord Notification
+        run: |
+          # Build fields array
+          FIELDS='[
+            {
+              "name": "Environment",
+              "value": "Production",
+              "inline": true
+            },
+            {
+              "name": "Author",
+              "value": "${{ github.actor }}",
+              "inline": true
+            }'
+
+          # Add PR field if found
+          if [ "${{ steps.pr.outputs.found }}" == "true" ]; then
+            FIELDS="$FIELDS"',
+            {
+              "name": "Pull Request",
+              "value": "[#${{ steps.pr.outputs.number }} ${{ steps.pr.outputs.title }}](${{ steps.pr.outputs.url }})",
+              "inline": false
+            }'
+          fi
+
+          # Add commit field
+          FIELDS="$FIELDS"',
+            {
+              "name": "Commit",
+              "value": "[\`${{ github.sha }}\`](${{ github.event.head_commit.url }})",
+              "inline": false
+            }
+          ]'
+
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"Swarm API Deployment\",
+                \"description\": \"${{ steps.status.outputs.status }}\",
+                \"color\": ${{ steps.status.outputs.color }},
+                \"fields\": $FIELDS,
+                \"timestamp\": \"${{ github.event.head_commit.timestamp }}\",
+                \"footer\": {
+                  \"text\": \"GitHub Actions\"
+                }
+              }]
+            }" \
+            ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
