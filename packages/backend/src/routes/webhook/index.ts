@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadDebugConfig } from "../../config.js";
+import { loadConfig } from "../../config.js";
 import { userRepository } from "../../repository/user.js";
 import {
 	handleCheckinWebhook,
@@ -8,7 +8,7 @@ import {
 import { logger } from "../../utils/logger.js";
 
 const router = new Hono();
-const config = loadDebugConfig();
+const config = loadConfig();
 
 router.get("/health", async (c) => {
 	try {

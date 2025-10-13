@@ -1,14 +1,13 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { loadDebugConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import { tslogMiddleware } from "./middleware/logger.js";
 import authRoutes from "./routes/auth/index.js";
 import mainRoutes from "./routes/index.js";
 import testFirestoreRoutes from "./routes/test/firestore.js";
 import usersRoutes from "./routes/users/me.js";
 import webhookRoutes from "./routes/webhook/index.js";
-import { initializeDebugAuth } from "./services/auth.js";
 import { logger } from "./utils/logger.js";
 
 // Create and configure Hono app
@@ -62,23 +61,10 @@ async function main(): Promise<void> {
 		const app = createApp();
 
 		// Load configuration
-		const config = loadDebugConfig();
+		const config = loadConfig();
 		logger.info("Configuration loaded", {
 			port: config.port,
-			hasDebugUserId: !!config.debugFoursquareUserId,
-			hasDebugToken: !!config.debugAccessToken,
 		});
-
-		// Initialize debug authentication if credentials are available
-		if (config.debugFoursquareUserId && config.debugAccessToken) {
-			await initializeDebugAuth(
-				config.debugFoursquareUserId,
-				config.debugAccessToken,
-			);
-			logger.info("Debug authentication initialized");
-		} else {
-			logger.warn("Debug authentication not initialized - missing credentials");
-		}
 
 		// Start server
 		const server = serve({
