@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'packages/backend/**'
+      - 'infra/**'
       - '.github/workflows/deploy-backend.yml'
   pull_request:
     branches: [main]
