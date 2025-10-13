@@ -213,9 +213,21 @@ jobs:
           fi
 
       - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          STATUS: ${{ steps.status.outputs.status }}
+          COLOR: ${{ steps.status.outputs.color }}
+          AUTHOR: ${{ github.actor }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+          PR_FOUND: ${{ steps.pr.outputs.found }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          PR_URL: ${{ steps.pr.outputs.url }}
         run: |
-          # Build fields array
-          FIELDS='[
+          # Build base fields
+          FIELDS=$(jq -n -c '[
             {
               "name": "Environment",
               "value": "Production",
@@ -223,40 +235,39 @@ jobs:
             },
             {
               "name": "Author",
-              "value": "${{ github.actor }}",
+              "value": $AUTHOR,
               "inline": true
-            }'
+            }
+          ]' --arg AUTHOR "$AUTHOR")
 
           # Add PR field if found
-          if [ "${{ steps.pr.outputs.found }}" == "true" ]; then
-            FIELDS="$FIELDS"',
-            {
+          if [ "$PR_FOUND" == "true" ]; then
+            FIELDS=$(echo "$FIELDS" | jq -c '. += [{
               "name": "Pull Request",
-              "value": "[#${{ steps.pr.outputs.number }} ${{ steps.pr.outputs.title }}](${{ steps.pr.outputs.url }})",
+              "value": ("[#" + $NUMBER + " " + $TITLE + "](" + $URL + ")"),
               "inline": false
-            }'
+            }]' --arg NUMBER "$PR_NUMBER" --arg TITLE "$PR_TITLE" --arg URL "$PR_URL")
           fi
 
           # Add commit field
-          FIELDS="$FIELDS"',
-            {
-              "name": "Commit",
-              "value": "[\`${{ github.sha }}\`](${{ github.event.head_commit.url }})",
-              "inline": false
-            }
-          ]'
+          FIELDS=$(echo "$FIELDS" | jq -c '. += [{
+            "name": "Commit",
+            "value": ("[`" + $SHA + "`](" + $URL + ")"),
+            "inline": false
+          }]' --arg SHA "$COMMIT_SHA" --arg URL "$COMMIT_URL")
 
-          curl -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"Swarm API Deployment\",
-                \"description\": \"${{ steps.status.outputs.status }}\",
-                \"color\": ${{ steps.status.outputs.color }},
-                \"fields\": $FIELDS,
-                \"timestamp\": \"${{ github.event.head_commit.timestamp }}\",
-                \"footer\": {
-                  \"text\": \"GitHub Actions\"
-                }
-              }]
-            }" \
-            ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          # Build final payload
+          PAYLOAD=$(jq -n -c '{
+            "embeds": [{
+              "title": "Swarm API Deployment",
+              "description": $STATUS,
+              "color": ($COLOR | tonumber),
+              "fields": ($FIELDS | fromjson),
+              "timestamp": $TIMESTAMP,
+              "footer": {
+                "text": "GitHub Actions"
+              }
+            }]
+          }' --arg STATUS "$STATUS" --arg COLOR "$COLOR" --arg TIMESTAMP "$TIMESTAMP" --argjson FIELDS "$FIELDS")
+
+          curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK_URL"
