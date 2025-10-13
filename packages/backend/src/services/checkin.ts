@@ -40,11 +40,15 @@ async function handleCheckinWebhook(
 			};
 		}
 
+		// Parse checkin data early to get the actual user who checked in
+		const checkin = parseCheckinData(payload.checkin);
+
 		// Check if user exists in Firestore (multi-user support)
-		const user = await userRepository.getUserByFoursquareId(payload.user.id);
+		// Use checkin.user.id (the actual user who checked in) instead of payload.user.id
+		const user = await userRepository.getUserByFoursquareId(checkin.user.id);
 		if (!user) {
 			securityLogger.warn("Webhook from unknown user", {
-				foursquareUserId: payload.user.id,
+				foursquareUserId: checkin.user.id,
 				ip: clientIp,
 			});
 			return {
@@ -54,7 +58,7 @@ async function handleCheckinWebhook(
 		}
 
 		securityLogger.info("Webhook processed for registered user", {
-			foursquareUserId: payload.user.id,
+			foursquareUserId: checkin.user.id,
 			discordUserId: user.discordUserId,
 			discordUsername: user.discordUsername,
 		});
@@ -67,12 +71,9 @@ async function handleCheckinWebhook(
 		} catch (error) {
 			webhookLogger.warn("Failed to update lastCheckinAt", {
 				error: error instanceof Error ? error.message : "Unknown error",
-				foursquareUserId: payload.user.id,
+				foursquareUserId: checkin.user.id,
 			});
 		}
-
-		// Parse checkin data
-		const checkin = parseCheckinData(payload.checkin);
 
 		// Send to Discord asynchronously (don't wait for response)
 		processCheckinAsync(checkin, discordWebhookUrl).catch((error) => {
