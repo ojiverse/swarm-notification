@@ -262,7 +262,7 @@ jobs:
               "title": "Swarm API Deployment",
               "description": $STATUS,
               "color": ($COLOR | tonumber),
-              "fields": ($FIELDS | fromjson),
+              "fields": $FIELDS,
               "timestamp": $TIMESTAMP,
               "footer": {
                 "text": "GitHub Actions"
