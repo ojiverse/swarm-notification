@@ -125,10 +125,6 @@ module "cloud_run" {
   }
   
   secret_environment_variables = {
-    DEBUG_ACCESS_TOKEN = {
-      secret_name = module.secret_manager.secret_ids["debug-access-token"]
-      version     = "latest"
-    }
     DISCORD_WEBHOOK_URL = {
       secret_name = module.secret_manager.secret_ids["discord-webhook-url"]
       version     = "latest"
@@ -143,10 +139,6 @@ module "cloud_run" {
     }
     FOURSQUARE_CLIENT_ID = {
       secret_name = module.secret_manager.secret_ids["foursquare-client-id"]
-      version     = "latest"
-    }
-    DEBUG_FOURSQUARE_USER_ID = {
-      secret_name = module.secret_manager.secret_ids["debug-foursquare-user-id"]
       version     = "latest"
     }
     # Phase 2: Discord OAuth and JWT secrets
