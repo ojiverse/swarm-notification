@@ -58,12 +58,6 @@ module "secret_manager" {
   labels     = local.common_labels
   
   secrets = {
-    debug-access-token = {
-      value       = "" # Not used when use_dummy = true
-      description = "Debug user's Foursquare access token"
-      use_dummy   = true
-      dummy_value = "FOURSQUARE_DEBUG_TOKEN_SET_VIA_CONSOLE"
-    }
     discord-webhook-url = {
       value       = "" # Not used when use_dummy = true
       description = "Discord webhook URL for notifications"
@@ -87,12 +81,6 @@ module "secret_manager" {
       description = "Foursquare OAuth client ID"
       use_dummy   = true
       dummy_value = "FOURSQUARE_CLIENT_ID_SET_VIA_CONSOLE"
-    }
-    debug-foursquare-user-id = {
-      value       = "" # Not used when use_dummy = true
-      description = "Debug user's Foursquare user ID"
-      use_dummy   = true
-      dummy_value = "DEBUG_USER_ID_SET_VIA_CONSOLE"
     }
     # Phase 2: Discord OAuth and JWT secrets
     jwt-secret = {
